@@ -1,3 +1,36 @@
+create table public.notes (
+  id uuid primary key,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  content text not null default '' check (char_length(content) <= 20000),
+  color text not null default 'default'
+    check (color in ('default', 'lemon', 'lime', 'mint', 'aqua', 'sky', 'lavender', 'bubblegum', 'coral')),
+  pinned boolean not null default false,
+  created_at timestamptz not null,
+  updated_at timestamptz not null,
+  deleted_at timestamptz,
+  server_updated_at timestamptz not null default clock_timestamp()
+);
+
+create index notes_user_server_updated_at_idx on public.notes (user_id, server_updated_at);
+
+alter table public.notes enable row level security;
+revoke all on table public.notes from anon, authenticated;
+
+create function public.set_server_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.server_updated_at := clock_timestamp();
+  return new;
+end;
+$$;
+
+create trigger notes_set_server_updated_at
+  before insert or update on public.notes
+  for each row execute function public.set_server_updated_at();
+
 create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 
@@ -49,19 +82,7 @@ $$;
 revoke all on function private.consume_rate_limit(text, integer) from public, anon, authenticated;
 revoke all on function private.note_usage(uuid) from public, anon, authenticated;
 
-alter table public.notes drop constraint notes_content_check;
-alter table public.notes add constraint notes_content_check check (char_length(content) <= 20000) not valid;
-
-drop policy "Users read own notes" on public.notes;
-drop policy "Users insert own notes" on public.notes;
-drop policy "Users update own notes" on public.notes;
-revoke all on table public.notes from anon, authenticated;
-
-alter publication supabase_realtime drop table public.notes;
-
-drop function public.push_notes(jsonb);
-
-create function public.push_notes(payload jsonb, device_id text default null)
+create function public.push_notes(payload jsonb)
 returns void
 language plpgsql
 security definer
@@ -125,13 +146,6 @@ begin
     or (usage_after.live_bytes > 5242880 and usage_after.live_bytes > usage_before.live_bytes) then
     raise exception 'storage quota exceeded' using errcode = 'PT413';
   end if;
-
-  perform realtime.send(
-    jsonb_build_object('device', left(device_id, 64)),
-    'changed',
-    'notes:' || owner::text,
-    true
-  );
 end;
 $$;
 
@@ -166,14 +180,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.push_notes(jsonb, text) from public, anon;
+revoke execute on function public.push_notes(jsonb) from public, anon;
 revoke execute on function public.pull_notes(timestamptz, integer) from public, anon;
-grant execute on function public.push_notes(jsonb, text) to authenticated;
+grant execute on function public.push_notes(jsonb) to authenticated;
 grant execute on function public.pull_notes(timestamptz, integer) to authenticated;
-
-create policy "Users receive own note changes" on realtime.messages
-  for select to authenticated
-  using (
-    (select realtime.topic()) = 'notes:' || (select auth.uid())::text
-    and realtime.messages.extension = 'broadcast'
-  );

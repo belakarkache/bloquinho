@@ -1,53 +1,20 @@
-import {
-  CheckCircleIcon,
-  CircleNotchIcon,
-  EnvelopeSimpleIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  GoogleLogoIcon,
-  LockSimpleIcon,
-  WarningCircleIcon,
-  XIcon,
-  type Icon,
-} from '@phosphor-icons/react'
+import { EnvelopeSimpleIcon, GoogleLogoIcon, XIcon } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/authContext'
 import { googleAuthEnabled } from '../lib/supabase'
+import { Field, FormFeedback, PasswordField, SubmitButton } from './AuthFormParts'
 import { IconButton } from './IconButton'
 import { LogoMark } from './Logo'
 import { ModalDialog } from './ModalDialog'
-import { bouncy, gentle, pressable, quickFade } from './motion'
+import { gentle, pressable, quickFade } from './motion'
 
 export type AuthMode = 'signIn' | 'signUp' | 'forgot' | 'newPassword'
 
 interface AuthDialogProps {
   initialMode: AuthMode
   onClose: () => void
-}
-
-interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
-  label: string
-  icon: Icon
-  trailing?: ReactNode
-}
-
-function Field({ label, icon: FieldIcon, trailing, ...input }: FieldProps) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-ink">{label}</span>
-      <span className="group/field flex h-12 items-center gap-2.5 rounded-2xl border-2 border-line bg-surface px-3.5 transition-[border-color,box-shadow] duration-200 focus-within:border-accent-ink focus-within:shadow-[0_0_0_4px_color-mix(in_oklab,var(--accent)_45%,transparent)]">
-        <FieldIcon
-          size={19}
-          weight="bold"
-          className="shrink-0 text-ink-faint transition-colors group-focus-within/field:text-ink"
-        />
-        <input {...input} className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none" />
-        {trailing}
-      </span>
-    </label>
-  )
 }
 
 const linkButtonClass =
@@ -59,7 +26,6 @@ export function AuthDialog({ initialMode, onClose }: AuthDialogProps) {
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -136,7 +102,6 @@ export function AuthDialog({ initialMode, onClose }: AuthDialogProps) {
   const needsEmail = mode !== 'newPassword'
   const needsPassword = mode !== 'forgot'
   const showPitch = mode === 'signIn' || mode === 'signUp'
-  const PasswordToggleIcon = showPassword ? EyeSlashIcon : EyeIcon
 
   return (
     <ModalDialog onClose={onClose} aria-labelledby="auth-title" className="items-end p-0 sm:items-center sm:p-6">
@@ -198,67 +163,19 @@ export function AuthDialog({ initialMode, onClose }: AuthDialogProps) {
                 />
               )}
               {needsPassword && (
-                <Field
+                <PasswordField
                   label={mode === 'newPassword' ? t('auth.newPassword') : t('auth.password')}
-                  icon={LockSimpleIcon}
-                  type={showPassword ? 'text' : 'password'}
                   required
                   minLength={8}
                   autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  trailing={
-                    <IconButton
-                      icon={PasswordToggleIcon}
-                      label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                      size="sm"
-                      className="-mr-2"
-                      onClick={() => setShowPassword(!showPassword)}
-                    />
-                  }
                 />
               )}
 
-              <AnimatePresence mode="popLayout">
-                {error && (
-                  <motion.p
-                    key="error"
-                    role="alert"
-                    initial={{ opacity: 0, y: -6, x: 0 }}
-                    animate={{ opacity: 1, y: 0, x: [0, -6, 6, -3, 0] }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-start gap-2 rounded-2xl bg-danger/10 px-3 py-2.5 text-sm font-medium text-danger"
-                  >
-                    <WarningCircleIcon size={18} weight="fill" className="mt-px shrink-0" />
-                    {error}
-                  </motion.p>
-                )}
-                {notice && (
-                  <motion.p
-                    key="notice"
-                    role="status"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={bouncy}
-                    className="flex items-start gap-2 rounded-2xl bg-success/12 px-3 py-2.5 text-sm font-medium text-success"
-                  >
-                    <CheckCircleIcon size={18} weight="fill" className="mt-px shrink-0" />
-                    {notice}
-                  </motion.p>
-                )}
-              </AnimatePresence>
+              <FormFeedback error={error} notice={notice} />
 
-              <motion.button
-                type="submit"
-                disabled={busy}
-                aria-busy={busy}
-                {...pressable}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-accent font-semibold text-on-accent shadow-[0_12px_24px_-12px_var(--accent)] transition-colors hover:bg-accent-hover disabled:opacity-70"
-              >
-                {busy && <CircleNotchIcon size={18} weight="bold" className="animate-spin" />}
-                {submitLabels[mode]}
-              </motion.button>
+              <SubmitButton busy={busy}>{submitLabels[mode]}</SubmitButton>
             </form>
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-2">

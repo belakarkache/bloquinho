@@ -49,7 +49,7 @@ Without `.env.local`, the app runs in local-only mode and hides sign-in.
 
 ## Supabase setup
 
-1. Run `supabase/migrations/20261008000000_init.sql` in the project's **SQL Editor**.
+1. Run every file in `supabase/migrations/`, in filename order, in the project's **SQL Editor**.
 2. In **Authentication → URL Configuration**, set the production URL (for example, `https://bloquinho.pages.dev`) as *Site URL* and add it and `http://localhost:5173` to *Redirect URLs*.
 3. Enable the **Email** provider.
 4. Optional: enable the **Google** provider and set `VITE_AUTH_GOOGLE=true`. The OAuth redirect URI is `https://<your-project>.supabase.co/auth/v1/callback`.

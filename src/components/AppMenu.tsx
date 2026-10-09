@@ -5,20 +5,23 @@ import {
   CloudSlashIcon,
   CloudWarningIcon,
   DeviceMobileIcon,
+  KeyIcon,
   ListIcon,
   XIcon,
   SignInIcon,
   SignOutIcon,
+  TrashIcon,
   type Icon,
 } from '@phosphor-icons/react'
 import type { User } from '@supabase/supabase-js'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAuth, useSyncStatus } from '../auth/authContext'
+import { hasPasswordLogin, useAuth, useSyncStatus } from '../auth/authContext'
 import { currentLanguage, SUPPORTED_LANGUAGES, type Language } from '../i18n'
 import type { SyncManager, SyncStatus } from '../sync/SyncManager'
 import { THEME_OPTIONS, useTheme } from '../theme/theme'
+import { AccountDialog, type AccountAction } from './AccountDialog'
 import { bouncy, pressable, quickFade, snappy } from './motion'
 import { THEME_ICON } from './themeIcons'
 
@@ -153,7 +156,13 @@ function ManualSyncButton({ syncManager }: { syncManager: SyncManager }) {
   )
 }
 
-function AccountSection({ onSignIn, onSignOut }: { onSignIn: () => void; onSignOut: () => void }) {
+interface AccountSectionProps {
+  onSignIn: () => void
+  onSignOut: () => void
+  onAccountAction: (action: AccountAction) => void
+}
+
+function AccountSection({ onSignIn, onSignOut, onAccountAction }: AccountSectionProps) {
   const { t } = useTranslation()
   const { client, user, syncManager } = useAuth()
   const status = useSyncStatus() ?? 'syncing'
@@ -187,44 +196,63 @@ function AccountSection({ onSignIn, onSignOut }: { onSignIn: () => void; onSignO
   const { icon: StatusIcon } = STATUS[status]
   return (
     <>
-      <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-3">
-        <Avatar user={user} className="size-10 text-xl" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink">{user.email}</p>
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-soft">
-            <motion.span
-              key={status}
-              initial={{ scale: 0.5 }}
-              animate={{ scale: 1 }}
-              transition={bouncy}
-              className={`inline-flex ${status === 'syncing' ? 'animate-spin-slow' : ''}`}
-            >
-              <StatusIcon size={14} weight="bold" />
-            </motion.span>
-            {t(`sync.${status}`)}
-          </p>
+        <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-3">
+          <Avatar user={user} className="size-10 text-xl" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-ink">{user.email}</p>
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-soft">
+              <motion.span
+                key={status}
+                initial={{ scale: 0.5 }}
+                animate={{ scale: 1 }}
+                transition={bouncy}
+                className={`inline-flex ${status === 'syncing' ? 'animate-spin-slow' : ''}`}
+              >
+                <StatusIcon size={14} weight="bold" />
+              </motion.span>
+              {t(`sync.${status}`)}
+            </p>
+          </div>
         </div>
-      </div>
-      {syncManager && MANUAL_SYNC_STATUSES.has(status) && <ManualSyncButton syncManager={syncManager} />}
-      <SignOutButton onSignOut={onSignOut} />
+        {syncManager && MANUAL_SYNC_STATUSES.has(status) && <ManualSyncButton syncManager={syncManager} />}
+        {hasPasswordLogin(user) && (
+          <MenuAction icon={KeyIcon} onClick={() => onAccountAction('changePassword')}>
+            {t('account.changePassword')}
+          </MenuAction>
+        )}
+        <MenuAction icon={SignOutIcon} danger onClick={onSignOut}>
+          {t('auth.signOut')}
+        </MenuAction>
+        <MenuAction icon={TrashIcon} danger onClick={() => onAccountAction('deleteAccount')}>
+          {t('account.deleteAccount')}
+        </MenuAction>
     </>
   )
 }
 
-function SignOutButton({ onSignOut }: { onSignOut: () => void }) {
-  const { t } = useTranslation()
+function MenuAction({
+  icon: ActionIcon,
+  danger = false,
+  onClick,
+  children,
+}: {
+  icon: Icon
+  danger?: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
   return (
     <button
       type="button"
-      onClick={onSignOut}
-      className="group/out mt-1 flex h-11 w-full items-center gap-2 rounded-2xl px-3 text-left text-sm font-semibold text-ink transition-colors hover:bg-danger/10 hover:text-danger"
+      onClick={onClick}
+      className={`group/action mt-1 flex h-11 w-full items-center gap-2 rounded-2xl px-3 text-left text-sm font-semibold text-ink transition-colors ${danger ? 'hover:bg-danger/10 hover:text-danger' : 'hover:bg-ink/8'}`}
     >
-      <SignOutIcon
+      <ActionIcon
         size={18}
         weight="bold"
-        className="transition-transform duration-300 ease-(--ease-spring) group-hover/out:translate-x-1"
+        className="transition-transform duration-300 ease-(--ease-spring) group-hover/action:translate-x-1"
       />
-      {t('auth.signOut')}
+      {children}
     </button>
   )
 }
@@ -278,6 +306,7 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
   const { loading, signOut } = useAuth()
   const { preference, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
+  const [accountAction, setAccountAction] = useState<AccountAction | null>(null)
   const close = useCallback(() => setOpen(false), [])
   const containerRef = useDismiss(open, close)
   const panelId = useId()
@@ -289,7 +318,13 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
     void signOut((count) => window.confirm(t('auth.pendingLogout', { count })))
   }
 
+  const openAccountAction = (action: AccountAction) => {
+    close()
+    setAccountAction(action)
+  }
+
   return (
+    <>
     <div ref={containerRef} className="relative">
       <MenuTrigger open={open} onToggle={() => setOpen(!open)} panelId={panelId} />
       <AnimatePresence>
@@ -310,6 +345,7 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
                 onSignIn()
               }}
               onSignOut={onSignOut}
+              onAccountAction={openAccountAction}
             />
             <Segmented
               label={t('theme.label')}
@@ -331,5 +367,11 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
         )}
       </AnimatePresence>
     </div>
+    <AnimatePresence>
+      {accountAction && (
+        <AccountDialog key={accountAction} action={accountAction} onClose={() => setAccountAction(null)} />
+      )}
+    </AnimatePresence>
+    </>
   )
 }

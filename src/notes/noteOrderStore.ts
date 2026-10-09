@@ -51,3 +51,17 @@ export function saveNoteOrder(order: readonly string[]): void {
 export function useNoteOrder(): readonly string[] {
   return useSyncExternalStore(subscribe, () => currentOrder, () => EMPTY_ORDER)
 }
+
+function forget(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    return
+  }
+}
+
+export function clearNoteOrder(): void {
+  currentOrder = EMPTY_ORDER
+  forget()
+  notify()
+}

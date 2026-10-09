@@ -10,6 +10,7 @@ export interface AuthContextValue {
   recoveringPassword: boolean
   finishPasswordRecovery: () => void
   signOut: (confirmDiscard: (pending: number) => boolean) => Promise<void>
+  deleteAccount: () => Promise<{ error: Error | null }>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
@@ -29,4 +30,9 @@ export function useSyncStatus(): SyncStatus | null {
     syncManager?.subscribe ?? noopSubscribe,
     syncManager?.getStatus ?? offlineStatus,
   )
+}
+
+export function hasPasswordLogin(user: User): boolean {
+  const providers: unknown = user.app_metadata.providers
+  return Array.isArray(providers) ? providers.includes('email') : user.app_metadata.provider === 'email'
 }

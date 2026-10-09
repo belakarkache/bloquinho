@@ -156,4 +156,14 @@ export const en: Translation = {
     pendingLogout_one: '{{count}} note has not synced yet and will be lost on sign out. Sign out anyway?',
     pendingLogout_other: '{{count}} notes have not synced yet and will be lost on sign out. Sign out anyway?',
   },
+  account: {
+    changePassword: 'Change password',
+    currentPassword: 'Current password',
+    wrongPassword: 'Current password is incorrect.',
+    deleteAccount: 'Delete account',
+    deleteWarning:
+      'Your account and all synced notes will be erased forever, on every device. This cannot be undone.',
+    typeEmail: 'Type {{email}} to confirm',
+    deleteConfirm: 'Delete account forever',
+  },
 }

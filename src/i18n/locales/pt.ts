@@ -154,6 +154,16 @@ export const pt = {
     pendingLogout_one: '{{count}} nota ainda não sincronizou e será perdida ao sair. Sair mesmo assim?',
     pendingLogout_other: '{{count}} notas ainda não sincronizaram e serão perdidas ao sair. Sair mesmo assim?',
   },
+  account: {
+    changePassword: 'Alterar senha',
+    currentPassword: 'Senha atual',
+    wrongPassword: 'Senha atual incorreta.',
+    deleteAccount: 'Excluir conta',
+    deleteWarning:
+      'Sua conta e todas as notas sincronizadas serão apagadas para sempre, em todos os dispositivos. Não dá para desfazer.',
+    typeEmail: 'Digite {{email}} para confirmar',
+    deleteConfirm: 'Excluir conta para sempre',
+  },
 }
 
 export type Translation = typeof pt

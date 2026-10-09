@@ -2,6 +2,7 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { db } from '../db/database'
 import { supabase } from '../lib/supabase'
+import { clearNoteOrder } from '../notes/noteOrderStore'
 import { createSupabaseRemote } from '../sync/supabaseRemote'
 import { SyncManager } from '../sync/SyncManager'
 import { AuthContext, type AuthContextValue } from './authContext'
@@ -62,6 +63,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [syncManager],
   )
 
+  const deleteAccount = useCallback(async () => {
+    if (!supabase) return { error: null }
+    const { error } = await supabase.rpc('delete_account')
+    if (error) return { error }
+    await supabase.auth.signOut({ scope: 'local' })
+    await db.clearAll()
+    clearNoteOrder()
+    return { error: null }
+  }, [])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       client: supabase,
@@ -71,8 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       recoveringPassword,
       finishPasswordRecovery: () => setRecoveringPassword(false),
       signOut,
+      deleteAccount,
     }),
-    [session, loading, syncManager, recoveringPassword, setRecoveringPassword, signOut],
+    [session, loading, syncManager, recoveringPassword, setRecoveringPassword, signOut, deleteAccount],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

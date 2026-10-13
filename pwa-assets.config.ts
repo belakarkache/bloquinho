@@ -5,6 +5,7 @@ const iconBackground = { resizeOptions: { background: '#0b0c0e' } }
 export default defineConfig({
   preset: {
     ...minimal2023Preset,
+    transparent: { ...minimal2023Preset.transparent, padding: 0 },
     maskable: { ...minimal2023Preset.maskable, padding: 0.1, ...iconBackground },
     apple: { ...minimal2023Preset.apple, padding: 0.1, ...iconBackground },
   },

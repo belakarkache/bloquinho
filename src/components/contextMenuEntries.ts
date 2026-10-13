@@ -57,8 +57,18 @@ export function linkGroup(t: Translate, href: string, onRemove?: () => void): Me
   ]
 }
 
-export function clipboardGroup(t: Translate, field: TextField, paste?: (text: string) => void): MenuGroup {
-  const hasSelection = field.selectionStart === null || field.selectionStart !== field.selectionEnd
+interface ClipboardOverrides {
+  paste?: (text: string) => void
+  selectAll?: () => void
+  hasSelection?: boolean
+}
+
+export function clipboardGroup(
+  t: Translate,
+  field: TextField,
+  { paste, selectAll = () => field.select(), hasSelection: selected }: ClipboardOverrides = {},
+): MenuGroup {
+  const hasSelection = selected || field.selectionStart === null || field.selectionStart !== field.selectionEnd
   const editable = !field.readOnly && !field.disabled
   const copyable = hasSelection && field.type !== 'password'
   const insert = paste ?? ((text: string) => runCommand(field, 'insertText', text))
@@ -81,7 +91,7 @@ export function clipboardGroup(t: Translate, field: TextField, paste?: (text: st
         disabled: !canPaste,
       },
     ),
-    menuAction(t('contextMenu.selectAll'), SelectionAllIcon, () => field.select(), { shortcut: shortcutLabel('A') }),
+    menuAction(t('contextMenu.selectAll'), SelectionAllIcon, selectAll, { shortcut: shortcutLabel('A') }),
   ]
 }
 
@@ -104,25 +114,24 @@ export function formatGroup(t: Translate, format: (action: FormatAction) => void
   ] satisfies MenuGroup
 }
 
-interface RichTextHandlers {
+interface RichTextHandlers extends ClipboardOverrides {
   format: (action: FormatAction) => void
   toggleChecklist: () => void
   unlink: (link: HTMLElement) => void
-  paste?: (text: string) => void
 }
 
 export function richTextGroups(
   t: Translate,
   field: HTMLTextAreaElement,
   point: { x: number; y: number },
-  { format, toggleChecklist, unlink, paste }: RichTextHandlers,
+  { format, toggleChecklist, unlink, ...clipboard }: RichTextHandlers,
 ): MenuGroup[] {
   const link = overlayLinkAt(field, point.x, point.y)
   const href = link?.dataset.href
   const removable = link?.dataset.link !== undefined
   return [
     href ? linkGroup(t, href, removable ? () => unlink(link!) : undefined) : [],
-    clipboardGroup(t, field, paste),
+    clipboardGroup(t, field, clipboard),
     formatGroup(t, format, toggleChecklist),
   ]
 }

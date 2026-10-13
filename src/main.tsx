@@ -7,6 +7,8 @@ import { ContextMenuProvider } from './components/ContextMenu.tsx'
 import './i18n'
 import './index.css'
 
+if (import.meta.env.DEV) void import('./dev/seed')
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MotionConfig reducedMotion="user">

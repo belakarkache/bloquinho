@@ -1,6 +1,6 @@
 import { useMemo, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { codeLineStates } from '../notes/lineEditing'
+import { codeLineStates, lineSpan, type LineSpan } from '../notes/lineEditing'
 import { unlinkInline, unlinkInLine } from '../notes/links'
 import { ChecklistBox } from './ChecklistBox'
 import { useContextMenu } from './contextMenu'
@@ -12,11 +12,25 @@ import type { LineEditorState } from './useLineEditor'
 
 interface LineEditorProps {
   editor: LineEditorState
+  className?: string
 }
 
-export function LineEditor({ editor }: LineEditorProps) {
+function SelectionLayer({ text, span }: { text: string; span: LineSpan }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none break-words whitespace-pre-wrap text-transparent [grid-area:1/1]"
+    >
+      {text.slice(0, span.from)}
+      <span className="bg-selection">{text.slice(span.from, span.to)}</span>
+      {span.lineBreak && <span className="inline-block h-[1lh] w-[0.4em] bg-selection align-top" />}
+    </div>
+  )
+}
+
+export function LineEditor({ editor, className = 'px-6 pt-6 sm:px-8 sm:pt-8' }: LineEditorProps) {
   const { t } = useTranslation()
-  const { lines } = editor
+  const { lines, selection } = editor
   const showPlaceholder = lines.length === 1 && lines[0].text === ''
   const insideCode = useMemo(() => codeLineStates(lines), [lines])
   const openMenu = useContextMenu()
@@ -42,6 +56,8 @@ export function LineEditor({ editor }: LineEditorProps) {
           format: editor.format,
           toggleChecklist: editor.toggleActiveLine,
           paste: (text) => editor.pasteText(index, text),
+          selectAll: editor.selectAll,
+          hasSelection: selection !== null,
           unlink,
         },
       ),
@@ -49,46 +65,58 @@ export function LineEditor({ editor }: LineEditorProps) {
   }
 
   return (
-    <div className="flex min-h-56 flex-1 flex-col overflow-y-auto px-6 pt-6 pb-3 text-[17px] leading-relaxed sm:px-8 sm:pt-8">
-      {lines.map((line, index) => (
-        <div key={line.id} className="flex items-start gap-2.5">
-          {line.checked !== null && (
-            <ChecklistBox
-              checked={line.checked}
-              label={line.text || t('note.emptyItem')}
-              onToggle={() => editor.toggleChecked(index)}
-            />
-          )}
-          <div
-            className={`grid min-w-0 flex-1 ${line.checked === null ? lineStyle(line.text, insideCode[index]) : ''}`}
-          >
+    <div
+      onPointerDown={(event) => {
+        if (event.button === 0 && selection) editor.clearSelection()
+      }}
+      className={`scrollbar-none flex min-h-56 flex-1 flex-col overflow-y-auto pb-3 text-[17px] leading-relaxed ${className}`}
+    >
+      {lines.map((line, index) => {
+        const span = selection && lineSpan(selection, index, line.text.length)
+        return (
+          <div key={line.id} className="flex items-start gap-2.5">
+            {line.checked !== null && (
+              <ChecklistBox
+                checked={line.checked}
+                label={line.text || t('note.emptyItem')}
+                onToggle={() => editor.toggleChecked(index)}
+              />
+            )}
             <div
-              aria-hidden="true"
-              className={`pointer-events-none break-words whitespace-pre-wrap [grid-area:1/1] ${line.checked ? 'text-ink-faint line-through' : 'text-ink'}`}
+              className={`grid min-w-0 flex-1 grid-cols-1 ${line.checked === null ? lineStyle(line.text, insideCode[index]) : ''}`}
             >
-              {line.checked === null ? (
-                <HighlightedLine text={line.text} insideCode={insideCode[index]} />
-              ) : (
-                <HighlightedInline text={line.text} />
-              )}
+              {span && <SelectionLayer text={line.text} span={span} />}
+              <div
+                aria-hidden="true"
+                className={`pointer-events-none break-words whitespace-pre-wrap [grid-area:1/1] ${line.checked ? 'text-ink-faint line-through' : 'text-ink'}`}
+              >
+                {line.checked === null ? (
+                  <HighlightedLine text={line.text} insideCode={insideCode[index]} />
+                ) : (
+                  <HighlightedInline text={line.text} />
+                )}
+              </div>
+              <textarea
+                ref={editor.registerInput(line.id)}
+                value={line.text}
+                rows={1}
+                onChange={(event) => editor.setText(index, event.target.value)}
+                onKeyDown={(event) => editor.onKeyDown(index, event)}
+                onPaste={(event) => editor.onPaste(index, event)}
+                onCopy={editor.copySelection}
+                onCut={editor.copySelection}
+                onPointerDown={(event) => editor.onPointerDown(index, event)}
+                onFocus={() => editor.setActiveLine(line.id)}
+                onContextMenu={(event) => openLineMenu(index, event)}
+                {...linkClick}
+                placeholder={showPlaceholder ? t('note.editPlaceholder') : undefined}
+                aria-label={line.checked === null ? t('note.editPlaceholder') : t('note.item')}
+                className={`field-sizing-content block w-full min-w-0 resize-none overflow-hidden bg-transparent break-words text-transparent outline-none [grid-area:1/1] placeholder:text-ink-soft ${selection ? 'caret-transparent selection:bg-transparent' : 'caret-ink'}`}
+              />
             </div>
-            <textarea
-              ref={editor.registerInput(line.id)}
-              value={line.text}
-              rows={1}
-              onChange={(event) => editor.setText(index, event.target.value)}
-              onKeyDown={(event) => editor.onKeyDown(index, event)}
-              onPaste={(event) => editor.onPaste(index, event)}
-              onFocus={() => editor.setActiveLine(line.id)}
-              onContextMenu={(event) => openLineMenu(index, event)}
-              {...linkClick}
-              placeholder={showPlaceholder ? t('note.editPlaceholder') : undefined}
-              aria-label={line.checked === null ? t('note.editPlaceholder') : t('note.item')}
-              className="field-sizing-content block w-full min-w-0 resize-none overflow-hidden bg-transparent break-words text-transparent caret-ink outline-none [grid-area:1/1] placeholder:text-ink-soft"
-            />
           </div>
-        </div>
-      ))}
+        )
+      })}
       <div aria-hidden="true" onClick={editor.focusEnd} className="min-h-6 flex-1 cursor-text" />
     </div>
   )

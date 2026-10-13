@@ -43,6 +43,8 @@ export const en: Translation = {
     undo: 'Undo',
     edited: 'Edited {{time}}',
     checklist: 'Checklist',
+    expand: 'Expand',
+    collapse: 'Collapse',
     emptyItem: 'Empty item',
     item: 'List item',
   },

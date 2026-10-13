@@ -4,6 +4,8 @@ An installable, offline-first PWA for quick notes. It runs in the browser, on de
 
 **Live:** [bloquinho.pages.dev](https://bloquinho.pages.dev)
 
+![Bloquinho demo: creating a note, checking items, formatting, filtering by color, searching and switching to dark mode](docs/media/demo.gif)
+
 - **Signed out:** notes stay on the device (IndexedDB).
 - **Signed in:** notes sync across devices through Supabase. Notes created before signing in move to the account automatically.
 
@@ -14,6 +16,10 @@ An installable, offline-first PWA for quick notes. It runs in the browser, on de
 - Voice dictation with a local Whisper fallback
 - Light, dark and system themes
 - English and Portuguese
+
+| Light | Dark |
+| --- | --- |
+| ![Notes grid in light mode](docs/media/screenshot-light.png) | ![Notes grid in dark mode](docs/media/screenshot-dark.png) |
 
 ## Tech stack
 

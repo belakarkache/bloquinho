@@ -1,9 +1,23 @@
-import { useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+} from 'react'
 import { fromLines } from '../notes/checklist'
 import { formatShortcut, insertLink, toggleInline, type FormatAction } from '../notes/formatting'
 import {
   breakLine,
   editorLinesFrom,
+  extendSelection,
+  isCollapsed,
+  orderedRange,
+  replaceSelection,
+  selectAllLines,
+  selectedText,
   formatLineBlock,
   joinWithNext,
   joinWithPrevious,
@@ -12,6 +26,8 @@ import {
   toggleCodeFence,
   toggleLineKind,
   type EditorLine,
+  type LinePoint,
+  type LineSelection,
   type LinesEdit,
 } from '../notes/lineEditing'
 import { NOTE_MAX_LENGTH } from '../notes/types'
@@ -30,11 +46,45 @@ function selectionOf(input: HTMLTextAreaElement) {
   return { start: input.selectionStart, end: input.selectionEnd }
 }
 
+function anchorOf(input: HTMLTextAreaElement): number {
+  return input.selectionDirection === 'backward' ? input.selectionEnd : input.selectionStart
+}
+
+function offsetAtPoint(element: Element, x: number, y: number): number {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+  const range = document.createRange()
+  let offset = 0
+  let best = 0
+  let bestDistance = Number.POSITIVE_INFINITY
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const length = node.textContent?.length ?? 0
+    for (let position = 0; position < length; position++) {
+      range.setStart(node, position)
+      range.setEnd(node, position + 1)
+      const rect = range.getBoundingClientRect()
+      const dy = Math.max(rect.top - y, 0, y - rect.bottom)
+      const dx = Math.max(rect.left - x, 0, x - rect.right)
+      const distance = dy * 10_000 + dx
+      if (distance < bestDistance) {
+        bestDistance = distance
+        best = offset + position + (x > rect.left + rect.width / 2 ? 1 : 0)
+      }
+    }
+    offset += length
+  }
+  return best
+}
+
+const COLLAPSE_TO_START = new Set(['ArrowUp', 'ArrowLeft', 'Home', 'PageUp'])
+const COLLAPSE_TO_END = new Set(['ArrowDown', 'ArrowRight', 'End', 'PageDown'])
+const EXTEND_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'])
+
 export function useLineEditor(initialContent: string) {
   const [lines, setLines] = useState(() => editorLinesFrom(initialContent, newLineId))
   const inputs = useRef(new Map<string, HTMLTextAreaElement>())
   const pendingFocus = useRef<Focus | null>(null)
   const activeLineId = useRef<string | null>(null)
+  const [selection, setSelection] = useState<LineSelection | null>(null)
   const content = useMemo(() => fromLines(lines), [lines])
 
   const focusLine = ({ id, caret, end = caret }: Focus) => {
@@ -53,6 +103,7 @@ export function useLineEditor(initialContent: string) {
   const commit = (next: EditorLine[], focus: Focus | null = null): boolean => {
     if (fromLines(next).length > NOTE_MAX_LENGTH) return false
     pendingFocus.current = focus
+    setSelection(null)
     setLines(next)
     return true
   }
@@ -76,8 +127,81 @@ export function useLineEditor(initialContent: string) {
     return line ? focusLine({ id: line.id, caret: Math.min(caret, line.text.length) }) : false
   }
 
+  const pointFocus = ({ index, offset }: LinePoint): Focus => ({ id: lines[index].id, caret: offset })
+
+  const replaceSelected = (text: string) => selection !== null && applyEdit(replaceSelection(lines, selection, text, newLineId))
+
+  const collapseTo = (point: LinePoint) => {
+    setSelection(null)
+    focusLine(pointFocus(point))
+  }
+
+  const selectAll = () => {
+    if (lines.length === 1) {
+      inputs.current.get(lines[0].id)?.select()
+      return
+    }
+    setSelection(selectAllLines(lines))
+  }
+
+  const startLineSelection = (index: number, event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    const input = event.currentTarget
+    const down = event.key === 'ArrowDown'
+    const target = lines[down ? index + 1 : index - 1]
+    const atEdge = down ? input.selectionEnd === input.value.length : input.selectionStart === 0
+    if (!target || !(atEdge || isSingleRow(input))) return false
+    const moving = anchorOf(input) === input.selectionStart ? input.selectionEnd : input.selectionStart
+    setSelection({
+      anchor: { index, offset: anchorOf(input) },
+      focus: { index: down ? index + 1 : index - 1, offset: Math.min(moving, target.text.length) },
+    })
+    return true
+  }
+
+  const onSelectionKeyDown = (current: LineSelection, event: KeyboardEvent<HTMLTextAreaElement>) => {
+    const { key } = event
+    const { start, end } = orderedRange(current)
+    if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+      const lower = key.toLowerCase()
+      if (lower === 'a') selectAll()
+      if (['c', 'x', 'v', 's'].includes(lower)) return
+    } else if (key === 'Escape') {
+      event.stopPropagation()
+      collapseTo(current.focus)
+    } else if (event.shiftKey && EXTEND_KEYS.has(key)) {
+      const next = extendSelection(lines, current, key)
+      if (isCollapsed(next)) collapseTo(next.focus)
+      else setSelection(next)
+    } else if (COLLAPSE_TO_START.has(key)) collapseTo(start)
+    else if (COLLAPSE_TO_END.has(key)) collapseTo(end)
+    else if (key === 'Backspace' || key === 'Delete') replaceSelected('')
+    else if (key === 'Enter') replaceSelected('\n')
+    else if (key.length === 1) replaceSelected(key)
+    else if (key === 'Dead' || key === 'Process') {
+      replaceSelected('')
+      return
+    } else if (key === 'Tab') {
+      setSelection(null)
+      return
+    } else return
+    event.preventDefault()
+  }
+
   const onKeyDown = (index: number, event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.nativeEvent.isComposing) return
+    if (selection) {
+      onSelectionKeyDown(selection, event)
+      return
+    }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'a' && lines.length > 1) {
+      event.preventDefault()
+      selectAll()
+      return
+    }
+    if (event.shiftKey && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && startLineSelection(index, event)) {
+      event.preventDefault()
+      return
+    }
     const shortcut = formatShortcut(event)
     if (shortcut) {
       event.preventDefault()
@@ -106,14 +230,64 @@ export function useLineEditor(initialContent: string) {
     if (handled) event.preventDefault()
   }
 
+  const copySelection = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!selection) return
+    event.preventDefault()
+    event.clipboardData.setData('text/plain', selectedText(lines, selection))
+    if (event.type === 'cut') replaceSelected('')
+  }
+
+  const lineAtPoint = (y: number): number => {
+    const index = lines.findIndex((line) => {
+      const input = inputs.current.get(line.id)
+      return input !== undefined && y <= input.getBoundingClientRect().bottom
+    })
+    return index === -1 ? lines.length - 1 : index
+  }
+
+  const offsetInLine = (index: number, x: number, y: number): number => {
+    const input = inputs.current.get(lines[index].id)
+    const overlay = input?.previousElementSibling
+    if (!input || !overlay) return 0
+    const bounds = input.getBoundingClientRect()
+    if (y < bounds.top) return 0
+    if (y > bounds.bottom) return lines[index].text.length
+    return Math.min(offsetAtPoint(overlay, x, y), lines[index].text.length)
+  }
+
+  const onPointerDown = (index: number, event: PointerEvent<HTMLTextAreaElement>) => {
+    if (event.button !== 0 || event.pointerType !== 'mouse' || event.shiftKey) return
+    const input = event.currentTarget
+    let anchor: LinePoint | null = null
+    const move = ({ clientX, clientY }: globalThis.PointerEvent) => {
+      const target = lineAtPoint(clientY)
+      if (target === index && !anchor) return
+      anchor ??= { index, offset: anchorOf(input) }
+      setSelection({ anchor, focus: { index: target, offset: offsetInLine(target, clientX, clientY) } })
+    }
+    const stop = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+      setSelection((current) => (current && isCollapsed(current) ? null : current))
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
+
   const onPaste = (index: number, event: ClipboardEvent<HTMLTextAreaElement>) => {
     const pasted = event.clipboardData.getData('text/plain')
+    if (selection) {
+      event.preventDefault()
+      replaceSelected(pasted)
+      return
+    }
     if (!/[\r\n]/.test(pasted)) return
     event.preventDefault()
     applyEdit(pasteLines(lines, index, selectionOf(event.currentTarget), pasted, newLineId))
   }
 
   const pasteText = (index: number, text: string) => {
+    if (replaceSelected(text)) return
     const input = inputs.current.get(lines[index].id)
     if (!input) return
     input.focus()
@@ -180,9 +354,14 @@ export function useLineEditor(initialContent: string) {
   return {
     lines,
     content,
+    selection,
+    clearSelection: () => setSelection(null),
+    selectAll,
     registerInput,
     setText,
     onKeyDown,
+    onPointerDown,
+    copySelection,
     onPaste,
     pasteText,
     toggleChecked,

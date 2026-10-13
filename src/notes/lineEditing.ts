@@ -159,3 +159,96 @@ export function toggleCodeFence(lines: EditorLine[], index: number, caret: numbe
     focus: { id: line.id, caret: caret + code.text.length - line.text.length },
   }
 }
+
+export interface LinePoint {
+  index: number
+  offset: number
+}
+
+export interface LineSelection {
+  anchor: LinePoint
+  focus: LinePoint
+}
+
+export interface LineSpan {
+  from: number
+  to: number
+  lineBreak: boolean
+}
+
+export function orderedRange({ anchor, focus }: LineSelection): { start: LinePoint; end: LinePoint } {
+  const forward = anchor.index < focus.index || (anchor.index === focus.index && anchor.offset <= focus.offset)
+  return forward ? { start: anchor, end: focus } : { start: focus, end: anchor }
+}
+
+export function isCollapsed({ anchor, focus }: LineSelection): boolean {
+  return anchor.index === focus.index && anchor.offset === focus.offset
+}
+
+export function selectAllLines(lines: EditorLine[]): LineSelection {
+  const last = lines.length - 1
+  return { anchor: { index: 0, offset: 0 }, focus: { index: last, offset: lines[last].text.length } }
+}
+
+export function lineSpan(selection: LineSelection, index: number, length: number): LineSpan | null {
+  const { start, end } = orderedRange(selection)
+  if (index < start.index || index > end.index) return null
+  return {
+    from: index === start.index ? start.offset : 0,
+    to: index === end.index ? end.offset : length,
+    lineBreak: index < end.index,
+  }
+}
+
+export function selectedText(lines: EditorLine[], selection: LineSelection): string {
+  const { start, end } = orderedRange(selection)
+  return lines
+    .slice(start.index, end.index + 1)
+    .map((line, position) => {
+      const span = lineSpan(selection, start.index + position, line.text.length)!
+      const text = line.text.slice(span.from, span.to)
+      return span.from === 0 && line.checked !== null ? fromLines([{ ...line, text }]) : text
+    })
+    .join('\n')
+}
+
+export function replaceSelection(
+  lines: EditorLine[],
+  selection: LineSelection,
+  inserted: string,
+  newId: NewId,
+): LinesEdit {
+  const { start, end } = orderedRange(selection)
+  const first = lines[start.index]
+  const last = lines[end.index]
+  const wholeLines = start.index !== end.index && start.offset === 0 && end.offset === last.text.length
+  const merged = {
+    ...first,
+    checked: wholeLines ? null : first.checked,
+    text: first.text.slice(0, start.offset) + last.text.slice(end.offset),
+  }
+  const remaining = replaceRange(lines, start.index, end.index + 1, merged)
+  return pasteLines(remaining, start.index, { start: start.offset, end: start.offset }, inserted, newId)
+}
+
+function stepPoint(lines: EditorLine[], { index, offset }: LinePoint, key: string): LinePoint {
+  const length = lines[index].text.length
+  const previous = lines[index - 1]
+  const next = lines[index + 1]
+  switch (key) {
+    case 'ArrowUp':
+      return previous ? { index: index - 1, offset: Math.min(offset, previous.text.length) } : { index, offset: 0 }
+    case 'ArrowDown':
+      return next ? { index: index + 1, offset: Math.min(offset, next.text.length) } : { index, offset: length }
+    case 'ArrowLeft':
+      if (offset > 0 || !previous) return { index, offset: Math.max(0, offset - 1) }
+      return { index: index - 1, offset: previous.text.length }
+    default:
+      if (offset < length || !next) return { index, offset: Math.min(length, offset + 1) }
+      return { index: index + 1, offset: 0 }
+  }
+}
+
+export function extendSelection(lines: EditorLine[], selection: LineSelection, key: string): LineSelection {
+  return { anchor: selection.anchor, focus: stepPoint(lines, selection.focus, key) }
+}

@@ -1,3 +1,4 @@
+import { ListChecksIcon } from '@phosphor-icons/react'
 import type { MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FormatAction } from '../notes/formatting'
@@ -8,10 +9,11 @@ const keepFocus = (event: MouseEvent) => event.preventDefault()
 
 interface FormatToolbarProps {
   onFormat: (action: FormatAction) => void
+  onToggleChecklist: () => void
   className?: string
 }
 
-export function FormatToolbar({ onFormat, className = '' }: FormatToolbarProps) {
+export function FormatToolbar({ onFormat, onToggleChecklist, className = '' }: FormatToolbarProps) {
   const { t } = useTranslation()
   return (
     <div
@@ -29,6 +31,13 @@ export function FormatToolbar({ onFormat, className = '' }: FormatToolbarProps) 
           onClick={() => onFormat(action)}
         />
       ))}
+      <IconButton
+        icon={ListChecksIcon}
+        size="sm"
+        label={t('note.checklist')}
+        onMouseDown={keepFocus}
+        onClick={onToggleChecklist}
+      />
     </div>
   )
 }

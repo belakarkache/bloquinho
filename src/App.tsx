@@ -37,16 +37,21 @@ export default function App() {
   const notes = useLiveQuery(() => notesRepository.listVisible(), [], [])
   const { recoveringPassword, finishPasswordRecovery } = useAuth()
   const [colorFilter, setColorFilter] = useState<NoteColor | null>(null)
-  const [openNoteId, setOpenNoteId] = useState<string | null>(null)
+  const [editing, setEditing] = useState<Pick<Note, 'id' | 'content'> | null>(null)
   const [deletedNote, setDeletedNote] = useState<Note | null>(null)
   const [signInOpen, setSignInOpen] = useState(false)
   const order = useNoteOrder()
 
-  const partitioned = useMemo(
-    () => partitionNotes(notes, { query: '', color: colorFilter }, order),
-    [notes, colorFilter, order],
+  const gridNotes = useMemo(
+    () => (editing ? notes.map((note) => (note.id === editing.id ? { ...note, content: editing.content } : note)) : notes),
+    [notes, editing],
   )
-  const openNote = notes.find((note) => note.id === openNoteId) ?? null
+  const partitioned = useMemo(
+    () => partitionNotes(gridNotes, { query: '', color: colorFilter }, order),
+    [gridNotes, colorFilter, order],
+  )
+  const openNote = notes.find((note) => note.id === editing?.id) ?? null
+  const openEditor = useCallback((note: Note) => setEditing({ id: note.id, content: note.content }), [])
 
   const updateNote = useCallback((id: string, changes: NoteChanges) => notesRepository.update(id, changes), [])
   const deleteNote = useCallback((note: Note) => {
@@ -64,7 +69,7 @@ export default function App() {
     if (pinned !== note.pinned) void updateNote(note.id, { pinned })
   }
   const dismissToast = useCallback(() => setDeletedNote(null), [])
-  const closeEditor = useCallback(() => setOpenNoteId(null), [])
+  const closeEditor = useCallback(() => setEditing(null), [])
   const composerRef = useRef<NoteComposerHandle>(null)
   const focusComposer = useCallback(() => composerRef.current?.focus(), [])
   const deleteAfterEditorCloses = useRef<Note | null>(null)
@@ -76,7 +81,7 @@ export default function App() {
   const deleteFromEditor = useCallback(
     (note: Note) => {
       deleteAfterEditorCloses.current = note
-      setOpenNoteId(null)
+      setEditing(null)
       setTimeout(flushEditorDelete, EDITOR_DELETE_FALLBACK_MS)
     },
     [flushEditorDelete],
@@ -87,7 +92,7 @@ export default function App() {
     openMenu(event, [
       href ? linkGroup(t, href) : [],
       ...noteGroups(t, note, {
-        onOpen: () => setOpenNoteId(note.id),
+        onOpen: () => openEditor(note),
         onTogglePin: () => void updateNote(note.id, { pinned: !note.pinned }),
         onColor: (color) => void updateNote(note.id, { color }),
         onDuplicate: () => void notesRepository.create(note),
@@ -117,7 +122,7 @@ export default function App() {
   return (
     <div className="flex min-h-dvh flex-col text-ink" onContextMenu={openAppMenu}>
       <Header
-        search={<NoteSearch ref={searchRef} notes={notes} onOpen={(note) => setOpenNoteId(note.id)} />}
+        search={<NoteSearch ref={searchRef} notes={notes} onOpen={openEditor} />}
         onSignIn={() => setSignInOpen(true)}
         onLogoClick={focusComposer}
       />
@@ -127,7 +132,7 @@ export default function App() {
         <NoteGrid
           notes={partitioned}
           filtering={colorFilter !== null}
-          onOpen={(note) => setOpenNoteId(note.id)}
+          onOpen={openEditor}
           onToggleItem={(note, line) => void updateNote(note.id, { content: toggleItem(note.content, line) })}
           onTogglePin={(note) => void updateNote(note.id, { pinned: !note.pinned })}
           onDelete={deleteNote}

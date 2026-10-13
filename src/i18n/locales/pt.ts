@@ -41,6 +41,8 @@ export const pt = {
     undo: 'Desfazer',
     edited: 'Editada em {{time}}',
     checklist: 'Lista de tarefas',
+    expand: 'Expandir',
+    collapse: 'Recolher',
     emptyItem: 'Item sem texto',
     item: 'Item da lista',
   },

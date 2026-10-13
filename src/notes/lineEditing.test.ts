@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { fromLines } from './checklist'
 import {
   breakLine,
+  extendSelection,
+  lineSpan,
+  replaceSelection,
+  selectAllLines,
+  selectedText,
   editorLinesFrom,
   formatLineBlock,
   joinWithNext,
@@ -132,5 +137,59 @@ describe('toggles', () => {
     expect(fromLines(toggleLineChecked(linesOf('- [ ] leite'), 0))).toBe('- [x] leite')
     const text = linesOf('leite')
     expect(toggleLineChecked(text, 0)).toBe(text)
+  })
+})
+
+describe('multi-line selection', () => {
+  const lines = linesOf('- [ ] leite\n- [x] pão\ncafé')
+
+  it('copies partial and whole lines keeping item markers', () => {
+    const selection = { anchor: { index: 2, offset: 2 }, focus: { index: 0, offset: 0 } }
+    expect(selectedText(lines, selection)).toBe('- [ ] leite\n- [x] pão\nca')
+  })
+
+  it('omits the marker when an item is partially selected', () => {
+    const selection = { anchor: { index: 0, offset: 2 }, focus: { index: 1, offset: 1 } }
+    expect(selectedText(lines, selection)).toBe('ite\n- [x] p')
+  })
+
+  it('selects every line', () => {
+    expect(selectAllLines(lines)).toEqual({ anchor: { index: 0, offset: 0 }, focus: { index: 2, offset: 4 } })
+  })
+
+  it('describes the selected span of each line', () => {
+    const selection = { anchor: { index: 0, offset: 2 }, focus: { index: 1, offset: 1 } }
+    expect(lineSpan(selection, 0, 5)).toEqual({ from: 2, to: 5, lineBreak: true })
+    expect(lineSpan(selection, 1, 3)).toEqual({ from: 0, to: 1, lineBreak: false })
+    expect(lineSpan(selection, 2, 4)).toBeNull()
+  })
+
+  it('replaces a partial selection keeping the first line kind', () => {
+    const selection = { anchor: { index: 0, offset: 2 }, focus: { index: 2, offset: 2 } }
+    const edit = replaceSelection(lines, selection, 'X', () => 'new')
+    expect(fromLines(edit.lines)).toBe('- [ ] leXfé')
+    expect(edit.focus).toEqual({ id: lines[0].id, caret: 3 })
+  })
+
+  it('clears everything into a plain line', () => {
+    const edit = replaceSelection(lines, selectAllLines(lines), '', () => 'new')
+    expect(fromLines(edit.lines)).toBe('')
+    expect(edit.lines).toHaveLength(1)
+  })
+
+  it('pastes multiple lines over the selection', () => {
+    const selection = { anchor: { index: 1, offset: 0 }, focus: { index: 2, offset: 4 } }
+    const edit = replaceSelection(lines, selection, 'a\nb', idSequence())
+    expect(fromLines(edit.lines)).toBe('- [ ] leite\na\nb')
+  })
+
+  it('extends the focus across lines', () => {
+    const selection = { anchor: { index: 0, offset: 3 }, focus: { index: 0, offset: 5 } }
+    expect(extendSelection(lines, selection, 'ArrowDown').focus).toEqual({ index: 1, offset: 3 })
+    expect(extendSelection(lines, selection, 'ArrowRight').focus).toEqual({ index: 1, offset: 0 })
+    expect(extendSelection(lines, { ...selection, focus: { index: 1, offset: 0 } }, 'ArrowLeft').focus).toEqual({
+      index: 0,
+      offset: 5,
+    })
   })
 })

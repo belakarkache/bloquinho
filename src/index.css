@@ -47,6 +47,7 @@
   --color-toast: var(--toast-bg);
   --color-on-toast: var(--toast-ink);
   --color-toast-action: var(--toast-action);
+  --color-selection: color-mix(in oklab, var(--accent) 55%, transparent);
 }
 
 :root {
@@ -192,6 +193,15 @@ body {
 
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+html:has(dialog[open]) {
+  overflow: hidden;
+  padding-right: var(--scrollbar-width, 0px);
+}
+
+dialog {
+  overscroll-behavior: contain;
 }
 
 dialog::backdrop {

@@ -13,6 +13,10 @@ export function ModalDialog({ ref, onClose, onEscape = onClose, className = '', 
   useImperativeHandle<HTMLDialogElement | null, HTMLDialogElement | null>(ref, () => dialogRef.current, [])
 
   useEffect(() => {
+    const root = document.documentElement
+    if (!document.querySelector('dialog[open]')) {
+      root.style.setProperty('--scrollbar-width', `${window.innerWidth - root.clientWidth}px`)
+    }
     dialogRef.current?.showModal()
   }, [])
 

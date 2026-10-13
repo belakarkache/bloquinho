@@ -164,7 +164,8 @@ export function NoteCard({
       animate={{
         opacity: measured ? 1 : 0,
         scale: drag.armed ? 1.04 : 1,
-        transition: { opacity: { duration: 0.2 }, scale: bouncy },
+        rotate: 0,
+        transition: { opacity: { duration: 0.2 }, scale: bouncy, rotate: gentle },
       }}
       exit={{ opacity: 0, scale: 0.8, rotate: -4, transition: quickFade }}
       whileHover={{ y: -5, rotate: tiltFor(note.id), transition: gentle }}

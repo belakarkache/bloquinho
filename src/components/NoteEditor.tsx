@@ -1,6 +1,6 @@
-import { CheckIcon, ListChecksIcon } from '@phosphor-icons/react'
+import { CheckIcon, CornersInIcon, CornersOutIcon } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { localeFor } from '../i18n'
 import { hasChecklist, isBlankNote } from '../notes/checklist'
@@ -21,6 +21,7 @@ import { VoiceModelDialog } from './VoiceModelDialog'
 import { VoicePanel } from './VoicePanel'
 
 const SAVE_DELAY_MS = 400
+const EXPANDED_PADDING = 'px-6 pt-6 sm:px-[max(2rem,calc(50%_-_24rem))] sm:pt-14'
 
 interface NoteEditorProps {
   note: Note
@@ -46,6 +47,7 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
   const savedContent = useRef(content)
   const lastFilledContent = useRef(note.content)
   const [startsInChecklist] = useState(() => hasChecklist(note.content))
+  const [expanded, setExpanded] = useState(false)
   const editedLabel = useEditedLabel(note.updatedAt)
   const voice = useVoiceInput(editor.insertTranscript)
   const openMenu = useContextMenu()
@@ -89,13 +91,20 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
     onClose()
   }
 
+  const saveShortcut = (event: KeyboardEvent) => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 's') return
+    event.preventDefault()
+    close()
+  }
+
   return (
     <ModalDialog
       ref={dialogRef}
       onClose={close}
       aria-label={t('note.open')}
       tabIndex={-1}
-      className="items-center p-4 outline-none sm:p-8"
+      onKeyDown={saveShortcut}
+      className={`items-center p-4 outline-none ${expanded ? 'sm:p-4' : 'sm:p-8'}`}
     >
       <motion.div
         layoutId={note.id}
@@ -104,7 +113,7 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
         onContextMenu={(event) =>
           openMenu(event, noteGroups(t, note, { onTogglePin: togglePin, onColor: changeColor, onDelete: deleteNote }))
         }
-        className="note-surface relative flex max-h-[min(44rem,calc(100dvh-2rem))] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] transition-[background-color,border-color] duration-300"
+        className={`note-surface relative flex w-full flex-col overflow-hidden rounded-[28px] transition-[background-color,border-color] duration-300 ${expanded ? 'h-full' : 'max-h-[min(44rem,calc(100dvh-2rem))] max-w-2xl'}`}
       >
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -112,14 +121,24 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
           exit={{ opacity: 0, transition: { duration: 0.08 } }}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <LineEditor editor={editor} />
-          <VoicePanel voice={voice} className="px-6 pb-2 sm:px-8" />
-          <p className="px-6 pb-2 text-right text-xs text-ink-soft sm:px-8">{editedLabel}</p>
-          <FormatToolbar onFormat={editor.format} className="border-t border-ink/10 px-3 py-1 sm:px-5" />
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink/10 px-3 py-2.5 sm:px-5">
+          <LineEditor editor={editor} className={expanded ? EXPANDED_PADDING : undefined} />
+          <VoicePanel voice={voice} className="shrink-0 px-6 pb-2 sm:px-8" />
+          <p className="shrink-0 px-6 pb-2 text-right text-xs text-ink-soft sm:px-8">{editedLabel}</p>
+          <FormatToolbar
+            onFormat={editor.format}
+            onToggleChecklist={editor.toggleActiveLine}
+            className="shrink-0 border-t border-ink/10 px-3 py-1 sm:px-5"
+          />
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-ink/10 px-3 py-2.5 sm:px-5">
             <ColorPicker value={note.color} onChange={changeColor} />
             <div className="ml-auto flex items-center gap-1">
-              <IconButton icon={ListChecksIcon} label={t('note.checklist')} onClick={editor.toggleActiveLine} />
+              <IconButton
+                icon={expanded ? CornersInIcon : CornersOutIcon}
+                label={expanded ? t('note.collapse') : t('note.expand')}
+                aria-pressed={expanded}
+                onClick={() => setExpanded(!expanded)}
+                className="max-sm:hidden"
+              />
               <PinButton pinned={note.pinned} onToggle={togglePin} />
               <DeleteButton onDelete={deleteNote} />
               <VoiceButton voice={voice} />

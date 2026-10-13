@@ -1,4 +1,4 @@
-# Bloquinho
+# <img src="public/icon.svg" alt="" width="32" align="top"> Bloquinho
 
 An installable, offline-first PWA for quick notes. Works in the browser, on desktop and on mobile, with optional sync across devices.
 

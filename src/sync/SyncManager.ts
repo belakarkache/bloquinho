@@ -1,18 +1,18 @@
-import { liveQuery } from 'dexie'
 import type { BloquinhoDB } from '../db/database'
 import type { Note } from '../notes/types'
 import { QuotaExceededError, RateLimitedError, type NotesRemote } from './remote'
 import { pullChanges, pushPending } from './syncNotes'
 
-export type SyncStatus = 'idle' | 'pending' | 'syncing' | 'offline' | 'error' | 'quotaExceeded'
+export type SyncStatus = 'synced' | 'saving' | 'offline' | 'error' | 'quotaExceeded'
 
 const OWNER_KEY = 'ownerId'
-const CHANGE_DEBOUNCE_MS = 2_000
-const MIN_SYNC_INTERVAL_MS = 5 * 60_000
-const RETRY_BASE_MS = 30_000
-const RETRY_MAX_MS = 15 * 60_000
+const PUSH_DEBOUNCE_MS = 1_500
+const PUSH_MAX_WAIT_MS = 10_000
+const MIN_PUSH_GAP_MS = 4_000
+const MIN_PULL_GAP_MS = 60_000
+const RETRY_BASE_MS = 15_000
+const RETRY_MAX_MS = 5 * 60_000
 const RATE_LIMIT_RETRY_MS = 60_000
-const MANUAL_SYNC_COOLDOWN_MS = 60_000
 
 export class SyncManager {
   readonly #db: BloquinhoDB
@@ -20,15 +20,15 @@ export class SyncManager {
   readonly #userId: string
   readonly #listeners = new Set<() => void>()
   readonly #cleanups: Array<() => void> = []
-  #status: SyncStatus = 'idle'
+  #status: SyncStatus = 'saving'
   #hasPending = false
   #queue: Promise<void> = Promise.resolve()
-  #syncTimer: ReturnType<typeof setTimeout> | undefined
   #pushTimer: ReturnType<typeof setTimeout> | undefined
   #retryTimer: ReturnType<typeof setTimeout> | undefined
   #retryDelay = RETRY_BASE_MS
-  #lastSyncAt = 0
-  #lastManualSyncAt = 0
+  #firstPendingAt: number | null = null
+  #lastPushAt = 0
+  #lastPullAt = 0
   #stopped = false
   #generation = 0
 
@@ -43,63 +43,38 @@ export class SyncManager {
     return () => this.#listeners.delete(listener)
   }
 
-  getStatus = (): SyncStatus => (this.#status === 'idle' && this.#hasPending ? 'pending' : this.#status)
-
-  manualSyncAvailableAt(): number {
-    return this.#lastManualSyncAt + MANUAL_SYNC_COOLDOWN_MS
-  }
-
-  syncManually(): Promise<void> {
-    if (this.#status === 'syncing' || Date.now() < this.manualSyncAvailableAt()) return Promise.resolve()
-    this.#lastManualSyncAt = Date.now()
-    return this.syncNow()
-  }
+  getStatus = (): SyncStatus => (this.#status === 'synced' && this.#hasPending ? 'saving' : this.#status)
 
   async start(): Promise<void> {
     this.#stopped = false
     const generation = ++this.#generation
     await this.#claimLocalData()
+    const pending = await this.pendingCount()
     if (generation !== this.#generation) return
 
-    const pendingCount = liveQuery(() => this.#db.pendingNotes().count())
-    const subscription = pendingCount.subscribe((count) => {
-      this.#setHasPending(count > 0)
-      if (count > 0) this.#scheduleSync()
-    })
-    this.#cleanups.push(() => subscription.unsubscribe())
-
-    const onNoteCreated = (_id: string, note: Note) => {
-      if (note.syncState === 'pending') this.#schedulePush()
-    }
-    this.#db.notes.hook('creating', onNoteCreated)
-    this.#cleanups.push(() => this.#db.notes.hook('creating').unsubscribe(onNoteCreated))
-
+    this.#setHasPending(pending > 0)
+    this.#watchLocalChanges()
+    this.#watchPageLifecycle()
     await this.syncNow()
   }
 
   stop(): void {
     this.#stopped = true
     this.#generation += 1
-    clearTimeout(this.#syncTimer)
     clearTimeout(this.#pushTimer)
     clearTimeout(this.#retryTimer)
     this.#cleanups.splice(0).forEach((cleanup) => cleanup())
   }
 
   syncNow(): Promise<void> {
-    clearTimeout(this.#syncTimer)
-    this.#syncTimer = undefined
-    return this.#enqueue(async () => {
-      this.#lastSyncAt = Date.now()
-      await pullChanges(this.#db, this.#remote)
+    return this.#run(async () => {
+      await this.#pull()
       await this.#push()
     })
   }
 
   pushNow(): Promise<void> {
-    clearTimeout(this.#pushTimer)
-    this.#pushTimer = undefined
-    return this.#enqueue(() => this.#push())
+    return this.#run(() => this.#push())
   }
 
   async pendingCount(): Promise<number> {
@@ -113,37 +88,91 @@ export class SyncManager {
     await this.#db.setMeta(OWNER_KEY, this.#userId)
   }
 
+  #watchLocalChanges(): void {
+    const onCreating = (_id: string, note: Note) => {
+      if (note.syncState === 'pending') this.#onLocalChange()
+    }
+    const onUpdating = (changes: Partial<Note>, _id: string, note: Note) => {
+      if ((changes.syncState ?? note.syncState) === 'pending') this.#onLocalChange()
+    }
+    this.#db.notes.hook('creating', onCreating)
+    this.#db.notes.hook('updating', onUpdating)
+    this.#cleanups.push(() => {
+      this.#db.notes.hook('creating').unsubscribe(onCreating)
+      this.#db.notes.hook('updating').unsubscribe(onUpdating)
+    })
+  }
+
+  #watchPageLifecycle(): void {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') this.#flush()
+      else if (Date.now() - this.#lastPullAt >= MIN_PULL_GAP_MS) void this.syncNow()
+    }
+    const onOnline = () => void this.syncNow()
+    const onOffline = () => this.#setStatus('offline')
+    const onPageHide = () => this.#flush()
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (this.#hasPending) event.preventDefault()
+    }
+    const listeners: Array<[EventTarget, string, EventListener]> = [
+      [document, 'visibilitychange', onVisibilityChange],
+      [window, 'online', onOnline],
+      [window, 'offline', onOffline],
+      [window, 'pagehide', onPageHide],
+      [window, 'beforeunload', onBeforeUnload as EventListener],
+    ]
+    listeners.forEach(([target, type, listener]) => target.addEventListener(type, listener))
+    this.#cleanups.push(() =>
+      listeners.forEach(([target, type, listener]) => target.removeEventListener(type, listener)),
+    )
+  }
+
+  #onLocalChange(): void {
+    this.#setHasPending(true)
+    this.#firstPendingAt ??= Date.now()
+    this.#schedulePush()
+  }
+
+  #schedulePush(): void {
+    const now = Date.now()
+    const debounced = now + PUSH_DEBOUNCE_MS
+    const deadline = (this.#firstPendingAt ?? now) + PUSH_MAX_WAIT_MS
+    const earliest = this.#lastPushAt + MIN_PUSH_GAP_MS
+    const runAt = Math.max(Math.min(debounced, deadline), earliest)
+    clearTimeout(this.#pushTimer)
+    this.#pushTimer = setTimeout(() => void this.pushNow(), runAt - now)
+  }
+
+  #flush(): void {
+    if (this.#hasPending && this.#status !== 'quotaExceeded') void this.pushNow()
+  }
+
+  async #pull(): Promise<void> {
+    this.#lastPullAt = Date.now()
+    await pullChanges(this.#db, this.#remote)
+  }
+
   async #push(): Promise<void> {
+    this.#lastPushAt = Date.now()
+    this.#firstPendingAt = null
     await pushPending(this.#db, this.#remote)
     this.#setHasPending((await this.pendingCount()) > 0)
   }
 
-  #schedulePush(): void {
+  #run(task: () => Promise<void>): Promise<void> {
     clearTimeout(this.#pushTimer)
-    this.#pushTimer = setTimeout(() => void this.pushNow(), CHANGE_DEBOUNCE_MS)
-  }
-
-  #scheduleSync(): void {
-    const nextAllowedAt = this.#lastSyncAt + MIN_SYNC_INTERVAL_MS
-    if (this.#syncTimer !== undefined && nextAllowedAt > Date.now()) return
-    clearTimeout(this.#syncTimer)
-    const delay = Math.max(CHANGE_DEBOUNCE_MS, nextAllowedAt - Date.now())
-    this.#syncTimer = setTimeout(() => void this.syncNow(), delay)
-  }
-
-  #enqueue(task: () => Promise<void>): Promise<void> {
+    clearTimeout(this.#retryTimer)
     const run = async () => {
       if (this.#stopped) return
       if (!navigator.onLine) {
         this.#setStatus('offline')
         return
       }
-      this.#setStatus('syncing')
+      this.#setStatus('saving')
       try {
         await task()
         this.#retryDelay = RETRY_BASE_MS
-        clearTimeout(this.#retryTimer)
-        this.#setStatus('idle')
+        this.#setStatus('synced')
       } catch (error) {
         this.#handleFailure(error)
       }
@@ -161,7 +190,6 @@ export class SyncManager {
     this.#setStatus('error')
     const delay = error instanceof RateLimitedError ? Math.max(RATE_LIMIT_RETRY_MS, this.#retryDelay) : this.#retryDelay
     this.#retryDelay = Math.min(this.#retryDelay * 2, RETRY_MAX_MS)
-    clearTimeout(this.#retryTimer)
     this.#retryTimer = setTimeout(() => void this.syncNow(), delay)
   }
 

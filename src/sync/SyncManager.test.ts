@@ -5,6 +5,26 @@ import { FakeRemote } from '../test/fakeRemote'
 import { QuotaExceededError, RateLimitedError } from './remote'
 import { SyncManager } from './SyncManager'
 
+function countCalls(remote: FakeRemote) {
+  const calls = { pulls: 0, pushes: 0 }
+  const pull = remote.pull.bind(remote)
+  const push = remote.push.bind(remote)
+  remote.pull = async (since) => {
+    calls.pulls += 1
+    return pull(since)
+  }
+  remote.push = async (notes) => {
+    calls.pushes += 1
+    return push(notes)
+  }
+  return calls
+}
+
+function setVisibility(state: DocumentVisibilityState) {
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: state })
+  document.dispatchEvent(new Event('visibilitychange'))
+}
+
 describe('SyncManager', () => {
   let db: BloquinhoDB
   let remote: FakeRemote
@@ -18,6 +38,7 @@ describe('SyncManager', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    setVisibility('visible')
   })
 
   it('uploads notes created while signed out on first start', async () => {
@@ -25,7 +46,7 @@ describe('SyncManager', () => {
     const manager = new SyncManager(db, remote, 'user-1')
     await manager.start()
     expect(remote.rows.get(note.id)?.note.content).toBe('antes do login')
-    expect(manager.getStatus()).toBe('idle')
+    expect(manager.getStatus()).toBe('synced')
     manager.stop()
   })
 
@@ -40,93 +61,104 @@ describe('SyncManager', () => {
     manager.stop()
   })
 
-  it('pushes new notes after a short debounce without pulling', async () => {
+  it('saves changes shortly after the user stops typing, without pulling', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
-    let pulls = 0
-    let pushes = 0
-    const pull = remote.pull.bind(remote)
-    const push = remote.push.bind(remote)
-    remote.pull = async (since) => {
-      pulls += 1
-      return pull(since)
-    }
-    remote.push = async (notes) => {
-      pushes += 1
-      return push(notes)
-    }
+    const calls = countCalls(remote)
     const manager = new SyncManager(db, remote, 'user-1')
     await manager.start()
-    const first = await repository.create({ content: 'primeira' })
+    const note = await repository.create({ content: 'p' })
     await vi.advanceTimersByTimeAsync(1_000)
-    const second = await repository.create({ content: 'segunda' })
+    await repository.update(note.id, { content: 'primeira' })
+    expect(manager.getStatus()).toBe('saving')
     await vi.advanceTimersByTimeAsync(1_000)
-    expect(remote.rows.has(first.id)).toBe(false)
-    await vi.advanceTimersByTimeAsync(1_000)
-    await vi.waitFor(() => expect(manager.getStatus()).toBe('idle'))
-    expect(remote.rows.has(first.id)).toBe(true)
-    expect(remote.rows.has(second.id)).toBe(true)
-    expect(pushes).toBe(1)
-    expect(pulls).toBe(1)
+    expect(remote.rows.has(note.id)).toBe(false)
+    await vi.advanceTimersByTimeAsync(3_000)
+    await vi.waitFor(() => expect(manager.getStatus()).toBe('synced'))
+    expect(remote.rows.get(note.id)?.note.content).toBe('primeira')
+    expect(calls).toEqual({ pulls: 1, pushes: 1 })
     manager.stop()
   })
 
-  it('syncs note edits at most once every five minutes', async () => {
+  it('saves at least every ten seconds while the user keeps typing', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
-    let pulls = 0
-    const pull = remote.pull.bind(remote)
-    remote.pull = async (since) => {
-      pulls += 1
-      return pull(since)
-    }
-    const note = await repository.create({ content: 'original' })
+    const note = await repository.create({ content: '' })
     const manager = new SyncManager(db, remote, 'user-1')
     await manager.start()
-    await repository.update(note.id, { content: 'editada' })
-    await vi.advanceTimersByTimeAsync(4 * 60_000)
-    expect(pulls).toBe(1)
-    expect(remote.rows.get(note.id)?.note.content).toBe('original')
+    for (let second = 1; second <= 10; second += 1) {
+      await repository.update(note.id, { content: `${second}` })
+      await vi.advanceTimersByTimeAsync(1_000)
+    }
+    await vi.waitFor(() => expect(remote.rows.get(note.id)?.note.content).toBe('10'))
+    manager.stop()
+  })
+
+  it('keeps pushes under the server rate limit', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    const calls = countCalls(remote)
+    const note = await repository.create({ content: '' })
+    const manager = new SyncManager(db, remote, 'user-1')
+    await manager.start()
+    for (let step = 0; step < 30; step += 1) {
+      await repository.update(note.id, { content: `${step}` })
+      await vi.advanceTimersByTimeAsync(2_000)
+    }
+    expect(calls.pushes).toBeLessThanOrEqual(16)
+    manager.stop()
+  })
+
+  it('saves right away when the app goes to the background', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    const manager = new SyncManager(db, remote, 'user-1')
+    await manager.start()
+    await vi.advanceTimersByTimeAsync(5_000)
+    const note = await repository.create({ content: 'fechando' })
+    setVisibility('hidden')
+    await vi.waitFor(() => expect(remote.rows.has(note.id)).toBe(true))
+    expect(manager.getStatus()).toBe('synced')
+    manager.stop()
+  })
+
+  it('pulls when the app comes back to the foreground at most once a minute', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    const calls = countCalls(remote)
+    const manager = new SyncManager(db, remote, 'user-1')
+    await manager.start()
+    setVisibility('visible')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(calls.pulls).toBe(1)
     await vi.advanceTimersByTimeAsync(60_000)
-    await vi.waitFor(() => expect(manager.getStatus()).toBe('idle'))
-    expect(pulls).toBe(2)
-    expect(remote.rows.get(note.id)?.note.content).toBe('editada')
+    setVisibility('visible')
+    await vi.waitFor(() => expect(calls.pulls).toBe(2))
     manager.stop()
   })
 
-  it('reports pending changes until they are pushed', async () => {
+  it('warns before closing only while changes are not saved', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     const manager = new SyncManager(db, remote, 'user-1')
     await manager.start()
-    expect(manager.getStatus()).toBe('idle')
+    const closing = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    expect(closing()).toBe(false)
     await repository.create({ content: 'nova' })
-    await vi.waitFor(() => expect(manager.getStatus()).toBe('pending'))
-    await vi.advanceTimersByTimeAsync(5 * 60_000)
-    await vi.waitFor(() => expect(manager.getStatus()).toBe('idle'))
+    expect(closing()).toBe(true)
+    await vi.advanceTimersByTimeAsync(5_000)
+    await vi.waitFor(() => expect(manager.getStatus()).toBe('synced'))
+    expect(closing()).toBe(false)
     manager.stop()
   })
 
-  it('allows the first manual sync right away and then once a minute', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
-    let pulls = 0
-    const pull = remote.pull.bind(remote)
-    remote.pull = async (since) => {
-      pulls += 1
-      return pull(since)
-    }
+  it('syncs when the connection comes back', async () => {
     const manager = new SyncManager(db, remote, 'user-1')
     await manager.start()
-    const first = await repository.create({ content: 'primeira' })
-    await manager.syncManually()
-    expect(pulls).toBe(2)
-    expect(remote.rows.has(first.id)).toBe(true)
-    expect(manager.getStatus()).toBe('idle')
-    const second = await repository.create({ content: 'segunda' })
-    await manager.syncManually()
-    expect(pulls).toBe(2)
-    await vi.advanceTimersByTimeAsync(60_000)
-    await vi.waitFor(() => expect(manager.getStatus()).toBe('idle'))
-    await manager.syncManually()
-    expect(pulls).toBe(3)
-    expect(remote.rows.has(second.id)).toBe(true)
+    window.dispatchEvent(new Event('offline'))
+    expect(manager.getStatus()).toBe('offline')
+    const note = await repository.create({ content: 'offline' })
+    window.dispatchEvent(new Event('online'))
+    await vi.waitFor(() => expect(remote.rows.has(note.id)).toBe(true))
+    expect(manager.getStatus()).toBe('synced')
     manager.stop()
   })
 
@@ -173,7 +205,7 @@ describe('SyncManager', () => {
     await vi.advanceTimersByTimeAsync(59_000)
     expect(pulls).toBe(1)
     await vi.advanceTimersByTimeAsync(1_000)
-    expect(pulls).toBe(2)
+    await vi.waitFor(() => expect(pulls).toBe(2))
     manager.stop()
   })
 })

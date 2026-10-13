@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/authContext'
+import { authErrorMessage } from '../auth/authErrors'
 import { googleAuthEnabled } from '../lib/supabase'
 import { Field, FormFeedback, PasswordField, SubmitButton } from './AuthFormParts'
 import { IconButton } from './IconButton'
@@ -38,14 +39,17 @@ export function AuthDialog({ initialMode, onClose }: AuthDialogProps) {
     setNotice(null)
   }
 
-  const run = async (action: () => Promise<{ error: Error | null }>, onSuccess: () => void) => {
+  const run = async <Result extends { error: Error | null }>(
+    action: () => Promise<Result>,
+    onSuccess: (result: Result) => void,
+  ) => {
     setBusy(true)
     setError(null)
     setNotice(null)
-    const { error: actionError } = await action()
+    const result = await action()
     setBusy(false)
-    if (actionError) setError(t('auth.error', { message: actionError.message }))
-    else onSuccess()
+    if (result.error) setError(authErrorMessage(result.error, t))
+    else onSuccess(result)
   }
 
   const onSubmit = (event: FormEvent) => {
@@ -61,7 +65,7 @@ export function AuthDialog({ initialMode, onClose }: AuthDialogProps) {
             password,
             options: { emailRedirectTo: location.origin },
           }),
-        () => setNotice(t('auth.confirmEmail')),
+        ({ data }) => (data.session ? onClose() : setNotice(t('auth.confirmEmail'))),
       )
     }
     if (mode === 'forgot') {

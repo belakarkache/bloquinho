@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/authContext'
+import { authErrorMessage } from '../auth/authErrors'
 import { Field, FormFeedback, PasswordField, SubmitButton } from './AuthFormParts'
 import { IconButton } from './IconButton'
 import { ModalDialog } from './ModalDialog'
@@ -47,7 +48,7 @@ function ChangePasswordForm({ client, user }: { client: SupabaseClient; user: Us
     })
     if (signInError) return t('account.wrongPassword')
     const { error: updateError } = await client.auth.updateUser({ password: newPassword })
-    return updateError ? t('auth.error', { message: updateError.message }) : null
+    return updateError ? authErrorMessage(updateError, t) : null
   }
 
   const onSubmit = (event: FormEvent) => {
@@ -95,7 +96,7 @@ function DeleteAccountForm({ user, onDeleted }: { user: User; onDeleted: () => v
     if (!confirmed) return
     void submit(async () => {
       const { error: deleteError } = await deleteAccount()
-      return deleteError ? t('auth.error', { message: deleteError.message }) : null
+      return deleteError ? authErrorMessage(deleteError, t) : null
     }, onDeleted)
   }
 

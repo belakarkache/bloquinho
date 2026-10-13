@@ -92,7 +92,7 @@ describe('AccountDialog', () => {
     await userEvents.type(screen.getByLabelText('Digite ana@exemplo.com para confirmar'), 'ana@exemplo.com')
     await userEvents.click(screen.getByRole('button', { name: 'Excluir conta para sempre' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Algo deu errado: boom')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Algo deu errado. Tente de novo.')
     expect(onClose).not.toHaveBeenCalled()
   })
 })

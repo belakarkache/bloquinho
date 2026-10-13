@@ -15,26 +15,23 @@ import {
 } from '@phosphor-icons/react'
 import type { User } from '@supabase/supabase-js'
 import { AnimatePresence, motion } from 'motion/react'
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { hasPasswordLogin, useAuth, useSyncStatus } from '../auth/authContext'
 import { currentLanguage, SUPPORTED_LANGUAGES, type Language } from '../i18n'
-import type { SyncManager, SyncStatus } from '../sync/SyncManager'
+import type { SyncStatus } from '../sync/SyncManager'
 import { THEME_OPTIONS, useTheme } from '../theme/theme'
 import { AccountDialog, type AccountAction } from './AccountDialog'
 import { bouncy, pressable, quickFade, snappy } from './motion'
 import { THEME_ICON } from './themeIcons'
 
 const STATUS: Record<SyncStatus, { icon: Icon; dot: string }> = {
-  idle: { icon: CloudCheckIcon, dot: 'bg-success' },
-  pending: { icon: CloudArrowUpIcon, dot: 'bg-warning' },
-  syncing: { icon: ArrowsClockwiseIcon, dot: 'bg-brand animate-pulse' },
+  synced: { icon: CloudCheckIcon, dot: 'bg-success' },
+  saving: { icon: CloudArrowUpIcon, dot: 'bg-brand animate-pulse' },
   offline: { icon: CloudSlashIcon, dot: 'bg-ink-faint' },
   error: { icon: CloudWarningIcon, dot: 'bg-danger' },
   quotaExceeded: { icon: CloudWarningIcon, dot: 'bg-danger' },
 }
-
-const MANUAL_SYNC_STATUSES: ReadonlySet<SyncStatus> = new Set(['pending', 'error', 'quotaExceeded'])
 
 const LANGUAGE_NAME: Record<Language, string> = {
   pt: 'Português',
@@ -123,39 +120,6 @@ function Avatar({ user, className }: { user: User; className: string }) {
   )
 }
 
-function subscribeToClock(onTick: () => void): () => void {
-  const interval = setInterval(onTick, 1000)
-  return () => clearInterval(interval)
-}
-
-const currentSecond = () => Math.floor(Date.now() / 1000)
-
-function useSecondsUntil(timestamp: number): number {
-  const now = useSyncExternalStore(subscribeToClock, currentSecond)
-  return Math.max(0, Math.ceil(timestamp / 1000) - now)
-}
-
-function ManualSyncButton({ syncManager }: { syncManager: SyncManager }) {
-  const { t } = useTranslation()
-  const secondsLeft = useSecondsUntil(syncManager.manualSyncAvailableAt())
-
-  return (
-    <button
-      type="button"
-      onClick={() => void syncManager.syncManually()}
-      disabled={secondsLeft > 0}
-      className="group/sync mt-1 flex h-11 w-full items-center gap-2 rounded-2xl px-3 text-left text-sm font-semibold text-ink transition-colors hover:bg-ink/8 disabled:text-ink-faint disabled:hover:bg-transparent"
-    >
-      <ArrowsClockwiseIcon
-        size={18}
-        weight="bold"
-        className="transition-transform duration-300 ease-(--ease-spring) group-enabled/sync:group-hover/sync:rotate-90"
-      />
-      {secondsLeft > 0 ? t('sync.syncIn', { seconds: secondsLeft }) : t('sync.syncNow')}
-    </button>
-  )
-}
-
 interface AccountSectionProps {
   onSignIn: () => void
   onSignOut: () => void
@@ -165,7 +129,7 @@ interface AccountSectionProps {
 function AccountSection({ onSignIn, onSignOut, onAccountAction }: AccountSectionProps) {
   const { t } = useTranslation()
   const { client, user, syncManager } = useAuth()
-  const status = useSyncStatus() ?? 'syncing'
+  const status = useSyncStatus() ?? 'saving'
 
   if (!client) return null
 
@@ -206,7 +170,7 @@ function AccountSection({ onSignIn, onSignOut, onAccountAction }: AccountSection
                 initial={{ scale: 0.5 }}
                 animate={{ scale: 1 }}
                 transition={bouncy}
-                className={`inline-flex ${status === 'syncing' ? 'animate-spin-slow' : ''}`}
+                className={`inline-flex ${status === 'saving' ? 'animate-pulse' : ''}`}
               >
                 <StatusIcon size={14} weight="bold" />
               </motion.span>
@@ -214,7 +178,11 @@ function AccountSection({ onSignIn, onSignOut, onAccountAction }: AccountSection
             </p>
           </div>
         </div>
-        {syncManager && MANUAL_SYNC_STATUSES.has(status) && <ManualSyncButton syncManager={syncManager} />}
+        {syncManager && status === 'error' && (
+          <MenuAction icon={ArrowsClockwiseIcon} onClick={() => void syncManager.syncNow()}>
+            {t('sync.retry')}
+          </MenuAction>
+        )}
         {hasPasswordLogin(user) && (
           <MenuAction icon={KeyIcon} onClick={() => onAccountAction('changePassword')}>
             {t('account.changePassword')}

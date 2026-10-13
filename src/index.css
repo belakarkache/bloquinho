@@ -12,7 +12,6 @@
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 
   --animate-wiggle: wiggle 450ms var(--ease-out-soft);
-  --animate-spin-slow: spin 1.4s linear infinite;
 
   @keyframes wiggle {
     0%,

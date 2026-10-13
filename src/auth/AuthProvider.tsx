@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (confirmDiscard: (pending: number) => boolean) => {
       if (!supabase) return
       if (syncManager) {
-        await syncManager.syncNow()
+        await syncManager.pushNow()
         const pending = await syncManager.pendingCount()
         if (pending > 0 && !confirmDiscard(pending)) return
       }

@@ -1,21 +1,21 @@
 # Bloquinho
 
-An installable, offline-first PWA for quick notes. It runs in the browser, on desktop (installed through Chrome or Edge) and on mobile (Add to Home Screen).
+An installable, offline-first PWA for quick notes. Works in the browser, on desktop and on mobile, with optional sync across devices.
 
-**Live:** [bloquinho.pages.dev](https://bloquinho.pages.dev)
+**Live demo:** [bloquinho](https://bloquinho.pages.dev)
 
 ![Bloquinho demo: creating a note, checking items, formatting, filtering by color, searching and switching to dark mode](docs/media/demo.gif)
 
-- **Signed out:** notes stay on the device (IndexedDB).
-- **Signed in:** notes sync across devices through Supabase. Notes created before signing in move to the account automatically.
-
 ## Features
 
-- Markdown formatting, checklists and links
-- Color labels, pinning, search and drag-and-drop reordering
-- Voice dictation with a local Whisper fallback
-- Light, dark and system themes
-- English and Portuguese
+- **Offline first**: notes are saved on the device (IndexedDB) and work without internet
+- **Optional sync**: sign in to sync notes across devices through Supabase
+- **Markdown**: formatting, checklists and links
+- **Organize**: color labels, pinning, search and drag-and-drop reordering
+- **Voice dictation**: Web Speech API with a local Whisper fallback
+- **Installable**: add to the home screen or install from Chrome or Edge
+- **Themes**: light, dark and system
+- **Bilingual**: English and Portuguese
 
 | Light | Dark |
 | --- | --- |
@@ -23,82 +23,46 @@ An installable, offline-first PWA for quick notes. It runs in the browser, on de
 
 ## Tech stack
 
-| Area | Technology |
-| --- | --- |
-| UI | React 19, TypeScript, Tailwind CSS 4, Motion, Phosphor Icons |
-| Build and PWA | Vite, vite-plugin-pwa (Workbox) |
-| Local data | Dexie (IndexedDB) |
-| Auth and sync | Supabase (Postgres, Auth, RPC, RLS) |
-| i18n | i18next |
-| Voice | Web Speech API, Whisper via transformers.js in a Web Worker |
-| Testing | Vitest, Testing Library, fake-indexeddb |
-| Hosting | Cloudflare Pages |
+- [React 19](https://react.dev), TypeScript and [Tailwind CSS 4](https://tailwindcss.com)
+- [Vite](https://vite.dev) with vite-plugin-pwa
+- [Dexie](https://dexie.org) (IndexedDB)
+- [Supabase](https://supabase.com) for auth and sync
+- Whisper via transformers.js in a Web Worker
+- Vitest and Testing Library
 
 ## Getting started
 
 ```bash
 npm install
-cp .env.example .env.local   # add your Supabase URL and anon key
+cp .env.example .env.local
 npm run dev
 ```
 
-Without `.env.local`, the app runs in local-only mode and hides sign-in.
+Without `.env.local`, the app runs in local-only mode. To enable sync, add your Supabase URL and anon key and run the files in `supabase/migrations/` in order.
 
-| Script | Description |
-| --- | --- |
-| `npm run dev` | Start the development server |
-| `npm test` | Run the tests (`npm run test:watch` for watch mode) |
-| `npm run lint` | Lint with oxlint |
-| `npm run typecheck` | Type-check with TypeScript |
-| `npm run build` | Build for production into `dist/` |
-| `npm run preview` | Serve the production build (the service worker only runs here) |
-
-## Supabase setup
-
-1. Run every file in `supabase/migrations/`, in filename order, in the project's **SQL Editor**.
-2. In **Authentication → URL Configuration**, set the production URL (for example, `https://bloquinho.pages.dev`) as *Site URL* and add it and `http://localhost:5173` to *Redirect URLs*.
-3. Enable the **Email** provider.
-4. Optional: enable the **Google** provider and set `VITE_AUTH_GOOGLE=true`. The OAuth redirect URI is `https://<your-project>.supabase.co/auth/v1/callback`.
-
-## Deployment
-
-Deploy to Cloudflare Pages with build command `npm run build` and output directory `dist`. Set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and, optionally, `VITE_AUTH_GOOGLE` as environment variables.
-
-## Architecture
-
-### Sync
-
-- Every write goes to IndexedDB first and is marked `pending`.
-- The client never accesses the `notes` table directly. It pushes through the `push_notes` RPC and pulls through `pull_notes`.
-- Pending changes are pushed with a 2 s debounce, at most once every 5 s, in batches of up to 200 notes.
-- Pulls run on startup, when the app comes back online and on window focus.
-- Failed requests retry with exponential backoff (30 s to 15 min).
-- Conflicts resolve with last-write-wins on `updated_at`, both on the client and in `push_notes`.
-- Deletions are soft deletes, so other devices see them. Deleted content is discarded and the record is purged after 30 days.
-- Pulls use a server-generated `server_updated_at` cursor with a 60 s overlap to avoid missing concurrent transactions.
-
-### Voice dictation
-
-The Web Speech API is the default. When it is unavailable, offline or fails mid-recording, the app transcribes the audio locally with Whisper (`onnx-community/whisper-base`, q8) in a Web Worker. The model (~85 MB) downloads only after user confirmation and is cached for offline use.
-
-### Usage limits
-
-Per-user quotas and rate limits are enforced in the database (`supabase/migrations/20261008000000_init.sql`) to fit the Supabase free tier: note size, number of notes, storage and requests per minute.
+| Command             | Description                                 |
+| ------------------- | ------------------------------------------- |
+| `npm run dev`       | Start the dev server                        |
+| `npm test`          | Run the tests                               |
+| `npm run lint`      | Lint with oxlint                            |
+| `npm run typecheck` | Run type checking                           |
+| `npm run build`     | Build for production into `dist/`           |
+| `npm run preview`   | Serve the build locally with service worker |
 
 ## Project structure
 
 ```
 src/
-  auth/        session and sync context
-  components/  UI components and hooks
-  db/          Dexie schema
-  i18n/        i18n setup and translations
-  lib/         Supabase client
-  notes/       note types, repository, Markdown and filters
-  sync/        sync engine, SyncManager and Supabase adapter
-  theme/       theme handling
-  voice/       voice dictation
-supabase/migrations/  database schema, RLS and RPCs
+├── auth/         Session and sync context
+├── components/   UI components and hooks
+├── db/           Dexie schema
+├── i18n/         Setup and translations
+├── notes/        Note types, repository, Markdown and filters
+├── sync/         Sync engine and Supabase adapter
+├── voice/        Voice dictation
+└── ...           Supabase client, theme
+supabase/
+└── migrations/   Database schema, RLS and RPCs
 ```
 
 ## License

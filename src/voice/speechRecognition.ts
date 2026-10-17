@@ -29,6 +29,7 @@ export class SpeechRecognitionFailure extends Error {
 }
 
 export interface SpeechSession {
+  level: () => number
   stop: () => Promise<string>
   abort: () => void
 }
@@ -39,6 +40,7 @@ interface SpeechOptions {
 }
 
 const IGNORED_ERRORS = new Set(['no-speech', 'aborted'])
+const RESULT_LEVEL_DECAY_MS = 600
 
 function recognizerConstructor(): RecognizerConstructor | undefined {
   const speechWindow = window as SpeechWindow
@@ -77,6 +79,7 @@ export function startSpeechRecognition({ lang, onText }: SpeechOptions): SpeechS
   let committed = ''
   let current = ''
   let stopping = false
+  let lastResultAt = -Infinity
   let failure: SpeechFailure | null = null
   let settle: { resolve: (text: string) => void; reject: (error: Error) => void } | null = null
   const finished = new Promise<string>((resolve, reject) => {
@@ -95,6 +98,7 @@ export function startSpeechRecognition({ lang, onText }: SpeechOptions): SpeechS
     recognizer.continuous = true
     recognizer.interimResults = true
     recognizer.onresult = (event) => {
+      lastResultAt = performance.now()
       current = resultsText(event.results)
       onText(joinText(committed, current))
     }
@@ -114,6 +118,7 @@ export function startSpeechRecognition({ lang, onText }: SpeechOptions): SpeechS
   let active = listen()
 
   return {
+    level: () => Math.max(0, 1 - (performance.now() - lastResultAt) / RESULT_LEVEL_DECAY_MS) * 0.6,
     stop: () => {
       stopping = true
       active.stop()

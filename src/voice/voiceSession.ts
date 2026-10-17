@@ -23,7 +23,18 @@ if (typeof window !== 'undefined') {
   })
 }
 
+function hasExclusiveMic(): boolean {
+  const { userAgent, maxTouchPoints } = navigator
+  const userAgentData = (navigator as Navigator & { userAgentData?: { mobile: boolean } }).userAgentData
+  return (
+    userAgentData?.mobile === true ||
+    /Android|iPhone|iPad|iPod/i.test(userAgent) ||
+    (/Macintosh/.test(userAgent) && maxTouchPoints > 1)
+  )
+}
+
 function usesSoloMic(): boolean {
+  if (hasExclusiveMic()) return true
   try {
     return localStorage.getItem(SOLO_MIC_KEY) === 'true'
   } catch {
@@ -84,7 +95,7 @@ async function startSpeechSession(lang: string, onText: (text: string) => void):
   }
 
   return {
-    level: () => backup?.level() ?? 0,
+    level: () => backup?.level() ?? speech.level(),
     finish,
     cancel: () => {
       speech.abort()

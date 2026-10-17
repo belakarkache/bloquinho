@@ -5,6 +5,7 @@ import {
   CloudSlashIcon,
   CloudWarningIcon,
   DeviceMobileIcon,
+  DownloadSimpleIcon,
   KeyIcon,
   ListIcon,
   XIcon,
@@ -19,9 +20,11 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { useTranslation } from 'react-i18next'
 import { hasPasswordLogin, useAuth, useSyncStatus } from '../auth/authContext'
 import { currentLanguage, SUPPORTED_LANGUAGES, type Language } from '../i18n'
+import { promptInstall, useInstallState } from '../lib/install'
 import type { SyncStatus } from '../sync/SyncManager'
 import { THEME_OPTIONS, useTheme } from '../theme/theme'
 import { AccountDialog, type AccountAction } from './AccountDialog'
+import { InstallDialog } from './InstallDialog'
 import { bouncy, pressable, quickFade, snappy } from './motion'
 import { THEME_ICON } from './themeIcons'
 
@@ -275,6 +278,8 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
   const { preference, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const [accountAction, setAccountAction] = useState<AccountAction | null>(null)
+  const [installHelp, setInstallHelp] = useState(false)
+  const install = useInstallState()
   const close = useCallback(() => setOpen(false), [])
   const containerRef = useDismiss(open, close)
   const panelId = useId()
@@ -284,6 +289,12 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
   const onSignOut = () => {
     close()
     void signOut((count) => window.confirm(t('auth.pendingLogout', { count })))
+  }
+
+  const onInstall = () => {
+    close()
+    if (install.canPrompt) void promptInstall()
+    else setInstallHelp(true)
   }
 
   const openAccountAction = (action: AccountAction) => {
@@ -315,6 +326,11 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
               onSignOut={onSignOut}
               onAccountAction={openAccountAction}
             />
+            {!install.installed && (
+              <MenuAction icon={DownloadSimpleIcon} onClick={onInstall}>
+                {t('install.action')}
+              </MenuAction>
+            )}
             <Segmented
               label={t('theme.label')}
               value={preference}
@@ -340,6 +356,7 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
         <AccountDialog key={accountAction} action={accountAction} onClose={() => setAccountAction(null)} />
       )}
     </AnimatePresence>
+    <AnimatePresence>{installHelp && <InstallDialog onClose={() => setInstallHelp(false)} />}</AnimatePresence>
     </>
   )
 }

@@ -107,6 +107,37 @@ export const pt = {
     open: 'Abrir menu',
     title: 'Menu',
   },
+  install: {
+    action: 'Instalar app',
+    title: 'Instalar o Bloquinho',
+    intro: 'Assim ele ganha um ícone na tela, abre como um aplicativo e funciona sem internet.',
+    done: 'Entendi',
+    ios: {
+      step1: 'Toque no botão Compartilhar, um quadrado com uma seta para cima. Se não achar, toque antes nos três pontinhos •••.',
+      step2: 'Role a lista para baixo e toque em "Adicionar à Tela de Início".',
+      step3: 'Toque em "Adicionar". O ícone do Bloquinho vai aparecer na tela do celular.',
+    },
+    android: {
+      step1: 'Se o site abriu dentro do WhatsApp ou de outro app, toque nos três pontinhos ⋮ e escolha "Abrir no Chrome".',
+      step2: 'No Chrome, toque nos três pontinhos ⋮ no canto de cima da tela.',
+      step3: 'Toque em "Instalar app" ou "Adicionar à tela inicial" e confirme.',
+    },
+    desktop: {
+      step1: 'Na barra de endereço, lá em cima, clique no ícone de instalar, do lado direito.',
+      step2: 'Se não aparecer, abra o menu do navegador (⋮ ou ···) e procure "Instalar Bloquinho".',
+      step3: 'Clique em "Instalar". O Bloquinho vai abrir numa janela própria.',
+    },
+    macSafari: {
+      step1: 'No menu lá em cima, clique em "Arquivo".',
+      step2: 'Clique em "Adicionar ao Dock".',
+      step3: 'Clique em "Adicionar". O Bloquinho vai aparecer no Dock.',
+    },
+    unsupported: {
+      step1: 'Este navegador não instala aplicativos de sites.',
+      step2: 'Abra este mesmo endereço no Google Chrome ou no Microsoft Edge.',
+      step3: 'Lá, abra este menu de novo e clique em "Instalar app".',
+    },
+  },
   theme: {
     label: 'Tema',
     system: 'Sistema',

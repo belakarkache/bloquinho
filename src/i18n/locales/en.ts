@@ -109,6 +109,37 @@ export const en: Translation = {
     open: 'Open menu',
     title: 'Menu',
   },
+  install: {
+    action: 'Install app',
+    title: 'Install Bloquinho',
+    intro: 'It gets an icon on your screen, opens like an app and works offline.',
+    done: 'Got it',
+    ios: {
+      step1: 'Tap the Share button, a square with an arrow pointing up. If you cannot find it, tap the three dots ••• first.',
+      step2: 'Scroll down the list and tap "Add to Home Screen".',
+      step3: 'Tap "Add". The Bloquinho icon will show up on your home screen.',
+    },
+    android: {
+      step1: 'If the site opened inside WhatsApp or another app, tap the three dots ⋮ and choose "Open in Chrome".',
+      step2: 'In Chrome, tap the three dots ⋮ at the top of the screen.',
+      step3: 'Tap "Install app" or "Add to Home screen" and confirm.',
+    },
+    desktop: {
+      step1: 'In the address bar at the top, click the install icon on the right side.',
+      step2: 'If it is not there, open the browser menu (⋮ or ···) and look for "Install Bloquinho".',
+      step3: 'Click "Install". Bloquinho will open in its own window.',
+    },
+    macSafari: {
+      step1: 'In the menu bar at the top, click "File".',
+      step2: 'Click "Add to Dock".',
+      step3: 'Click "Add". Bloquinho will show up in your Dock.',
+    },
+    unsupported: {
+      step1: 'This browser cannot install apps from websites.',
+      step2: 'Open this same address in Google Chrome or Microsoft Edge.',
+      step3: 'There, open this menu again and click "Install app".',
+    },
+  },
   theme: {
     label: 'Theme',
     system: 'System',

@@ -36,6 +36,7 @@ export interface SpeechSession {
 
 interface SpeechOptions {
   lang: string
+  continuous: boolean
   onText: (text: string) => void
 }
 
@@ -72,7 +73,7 @@ function resultsText(results: SpeechRecognitionResultList): string {
   return joinText(...parts)
 }
 
-export function startSpeechRecognition({ lang, onText }: SpeechOptions): SpeechSession {
+export function startSpeechRecognition({ lang, continuous, onText }: SpeechOptions): SpeechSession {
   const Recognizer = recognizerConstructor()
   if (!Recognizer) throw new SpeechRecognitionFailure('unavailable')
 
@@ -95,7 +96,7 @@ export function startSpeechRecognition({ lang, onText }: SpeechOptions): SpeechS
   const listen = (): Recognizer => {
     const recognizer = new Recognizer()
     recognizer.lang = lang
-    recognizer.continuous = true
+    recognizer.continuous = continuous
     recognizer.interimResults = true
     recognizer.onresult = (event) => {
       lastResultAt = performance.now()

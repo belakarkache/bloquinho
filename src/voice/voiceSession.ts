@@ -79,7 +79,7 @@ async function openBackupCapture(): Promise<AudioCapture | null> {
 
 async function startSpeechSession(lang: string, onText: (text: string) => void): Promise<VoiceSession> {
   const backup = await openBackupCapture()
-  const speech = startSpeechRecognition({ lang, onText })
+  const speech = startSpeechRecognition({ lang, continuous: !hasExclusiveMic(), onText })
 
   const finish = async (): Promise<VoiceResult> => {
     const audio = backup?.stop()

@@ -104,7 +104,7 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
       aria-label={t('note.open')}
       tabIndex={-1}
       onKeyDown={saveShortcut}
-      className={`items-center p-4 outline-none ${expanded ? 'sm:p-4' : 'sm:p-8'}`}
+      className={`items-center outline-none ${expanded ? 'sm:p-4' : 'sm:p-8'}`}
     >
       <motion.div
         layoutId={note.id}
@@ -113,7 +113,7 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
         onContextMenu={(event) =>
           openMenu(event, noteGroups(t, note, { onTogglePin: togglePin, onColor: changeColor, onDelete: deleteNote }))
         }
-        className={`note-surface relative flex w-full flex-col overflow-hidden rounded-[28px] transition-[background-color,border-color] duration-300 ${expanded ? 'h-full' : 'max-h-[min(44rem,calc(100dvh-2rem))] max-w-2xl'}`}
+        className={`note-surface relative flex h-full w-full flex-col overflow-hidden pt-[env(safe-area-inset-top)] transition-[background-color,border-color] duration-300 max-sm:border-0! sm:rounded-[28px] sm:pt-0 ${expanded ? '' : 'sm:h-auto sm:max-h-[min(44rem,calc(100dvh-2rem))] sm:max-w-2xl'}`}
       >
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -129,7 +129,7 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
             onToggleChecklist={editor.toggleActiveLine}
             className="shrink-0 border-t border-ink/10 px-3 py-1 sm:px-5"
           />
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-ink/10 px-3 py-2.5 sm:px-5">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-ink/10 px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-5 sm:pb-2.5">
             <ColorPicker value={note.color} onChange={changeColor} />
             <div className="ml-auto flex items-center gap-1">
               <IconButton

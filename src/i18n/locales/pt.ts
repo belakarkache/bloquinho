@@ -90,6 +90,13 @@ export const pt = {
     bubblegum: 'Chiclete',
     coral: 'Coral',
   },
+  categories: {
+    action: 'Categorias',
+    title: 'Categorias',
+    intro: 'Dê um nome para cada cor. Deixe em branco para usar o nome da cor.',
+    rename: 'Renomear {{name}}',
+    done: 'Concluir',
+  },
   contextMenu: {
     cut: 'Recortar',
     copy: 'Copiar',

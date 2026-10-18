@@ -11,6 +11,7 @@ export const NOTE_COLORS = [
 ] as const
 
 export const NOTE_MAX_LENGTH = 20_000
+export const COLOR_LABEL_MAX_LENGTH = 30
 
 export type NoteColor = (typeof NOTE_COLORS)[number]
 
@@ -27,6 +28,16 @@ export interface NoteData {
 }
 
 export interface Note extends NoteData {
+  syncState: SyncState
+}
+
+export interface ColorLabelData {
+  color: NoteColor
+  name: string
+  updatedAt: number
+}
+
+export interface ColorLabel extends ColorLabelData {
   syncState: SyncState
 }
 

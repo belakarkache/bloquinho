@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { useTranslation } from 'react-i18next'
+import { useColorNames } from '../notes/colorNames'
 import { NOTE_COLORS } from '../notes/types'
 import {
   ContextMenuContext,
@@ -197,7 +197,7 @@ function IconRow({ entry, start, handlers }: { entry: MenuIconRow; start: number
 }
 
 function ColorRow({ entry, start, handlers }: { entry: MenuColorRow; start: number; handlers: CellHandlers }) {
-  const { t } = useTranslation()
+  const { nameOf } = useColorNames()
   return (
     <div role="group" aria-label={entry.label} className="flex items-center gap-0.5 px-0.5 py-0.5">
       {NOTE_COLORS.map((color, offset) => {
@@ -208,8 +208,8 @@ function ColorRow({ entry, start, handlers }: { entry: MenuColorRow; start: numb
             key={color}
             role="menuitemradio"
             aria-checked={selected}
-            aria-label={t(`colors.${color}`)}
-            title={t(`colors.${color}`)}
+            aria-label={nameOf(color)}
+            title={nameOf(color)}
             {...cellProps(start + offset, handlers)}
             className="flex size-7 cursor-default items-center justify-center"
           >

@@ -92,6 +92,13 @@ export const en: Translation = {
     bubblegum: 'Bubblegum',
     coral: 'Coral',
   },
+  categories: {
+    action: 'Categories',
+    title: 'Categories',
+    intro: 'Give each color a name. Leave it blank to keep the color name.',
+    rename: 'Rename {{name}}',
+    done: 'Done',
+  },
   contextMenu: {
     cut: 'Cut',
     copy: 'Copy',

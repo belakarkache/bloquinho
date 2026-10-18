@@ -1,4 +1,4 @@
-import type { NoteData } from '../notes/types'
+import type { ColorLabelData, NoteData } from '../notes/types'
 
 export const PUSH_BATCH_SIZE = 200
 
@@ -11,6 +11,7 @@ export interface PullPage {
 export interface NotesRemote {
   push(notes: NoteData[]): Promise<void>
   pull(since: string | null): Promise<PullPage>
+  syncColorLabels(labels: ColorLabelData[]): Promise<ColorLabelData[]>
 }
 
 export class RateLimitedError extends Error {

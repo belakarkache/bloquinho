@@ -1,6 +1,7 @@
 import { CheckIcon } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
+import { useColorNames } from '../notes/colorNames'
 import { NOTE_COLORS, type NoteColor } from '../notes/types'
 import { bouncy, snappy } from './motion'
 
@@ -11,6 +12,7 @@ interface ColorPickerProps {
 
 export function ColorPicker({ value, onChange }: ColorPickerProps) {
   const { t } = useTranslation()
+  const { nameOf } = useColorNames()
   return (
     <div
       role="radiogroup"
@@ -25,8 +27,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-label={t(`colors.${color}`)}
-            title={t(`colors.${color}`)}
+            aria-label={nameOf(color)}
+            title={nameOf(color)}
             onClick={() => onChange(color)}
             whileHover={{ scale: 1.18, y: -2 }}
             whileTap={{ scale: 0.85 }}

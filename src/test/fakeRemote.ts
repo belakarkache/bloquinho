@@ -1,4 +1,4 @@
-import type { NoteData } from '../notes/types'
+import type { ColorLabelData, NoteColor, NoteData } from '../notes/types'
 import type { NotesRemote, PullPage } from '../sync/remote'
 
 interface StoredNote {
@@ -8,6 +8,7 @@ interface StoredNote {
 
 export class FakeRemote implements NotesRemote {
   readonly rows = new Map<string, StoredNote>()
+  readonly labels = new Map<NoteColor, ColorLabelData>()
   pageSize = 100
   #tick = 0
 
@@ -29,6 +30,14 @@ export class FakeRemote implements NotesRemote {
       cursor: page.at(-1)?.serverUpdatedAt ?? null,
       hasMore: page.length === this.pageSize,
     }
+  }
+
+  async syncColorLabels(labels: ColorLabelData[]): Promise<ColorLabelData[]> {
+    for (const label of labels) {
+      const existing = this.labels.get(label.color)
+      if (!existing || existing.updatedAt < label.updatedAt) this.labels.set(label.color, label)
+    }
+    return [...this.labels.values()]
   }
 
   store(note: NoteData): void {

@@ -1,6 +1,7 @@
 import type { BloquinhoDB } from '../db/database'
-import type { Note } from '../notes/types'
+import type { ColorLabel, Note } from '../notes/types'
 import { QuotaExceededError, RateLimitedError, type NotesRemote } from './remote'
+import { syncColorLabels } from './syncColorLabels'
 import { pullChanges, pushPending } from './syncNotes'
 
 export type SyncStatus = 'synced' | 'saving' | 'offline' | 'error' | 'quotaExceeded'
@@ -49,10 +50,10 @@ export class SyncManager {
     this.#stopped = false
     const generation = ++this.#generation
     await this.#claimLocalData()
-    const pending = await this.pendingCount()
+    const hasPending = await this.#hasLocalChanges()
     if (generation !== this.#generation) return
 
-    this.#setHasPending(pending > 0)
+    this.#setHasPending(hasPending)
     this.#watchLocalChanges()
     this.#watchPageLifecycle()
     await this.syncNow()
@@ -69,16 +70,21 @@ export class SyncManager {
   syncNow(): Promise<void> {
     return this.#run(async () => {
       await this.#pull()
-      await this.#push()
+      await this.#push(true)
     })
   }
 
   pushNow(): Promise<void> {
-    return this.#run(() => this.#push())
+    return this.#run(() => this.#push(false))
   }
 
   async pendingCount(): Promise<number> {
     return this.#db.pendingNotes().count()
+  }
+
+  async #hasLocalChanges(): Promise<boolean> {
+    const [notes, labels] = await Promise.all([this.pendingCount(), this.#db.pendingColorLabels().count()])
+    return notes + labels > 0
   }
 
   async #claimLocalData(): Promise<void> {
@@ -95,11 +101,21 @@ export class SyncManager {
     const onUpdating = (changes: Partial<Note>, _id: string, note: Note) => {
       if ((changes.syncState ?? note.syncState) === 'pending') this.#onLocalChange()
     }
+    const onLabelCreating = (_color: string, label: ColorLabel) => {
+      if (label.syncState === 'pending') this.#onLocalChange()
+    }
+    const onLabelUpdating = (changes: Partial<ColorLabel>, _color: string, label: ColorLabel) => {
+      if ((changes.syncState ?? label.syncState) === 'pending') this.#onLocalChange()
+    }
     this.#db.notes.hook('creating', onCreating)
     this.#db.notes.hook('updating', onUpdating)
+    this.#db.colorLabels.hook('creating', onLabelCreating)
+    this.#db.colorLabels.hook('updating', onLabelUpdating)
     this.#cleanups.push(() => {
       this.#db.notes.hook('creating').unsubscribe(onCreating)
       this.#db.notes.hook('updating').unsubscribe(onUpdating)
+      this.#db.colorLabels.hook('creating').unsubscribe(onLabelCreating)
+      this.#db.colorLabels.hook('updating').unsubscribe(onLabelUpdating)
     })
   }
 
@@ -152,11 +168,14 @@ export class SyncManager {
     await pullChanges(this.#db, this.#remote)
   }
 
-  async #push(): Promise<void> {
+  async #push(refreshLabels: boolean): Promise<void> {
     this.#lastPushAt = Date.now()
     this.#firstPendingAt = null
     await pushPending(this.#db, this.#remote)
-    this.#setHasPending((await this.pendingCount()) > 0)
+    if (refreshLabels || (await this.#db.pendingColorLabels().count()) > 0) {
+      await syncColorLabels(this.#db, this.#remote)
+    }
+    this.#setHasPending(await this.#hasLocalChanges())
   }
 
   #run(task: () => Promise<void>): Promise<void> {

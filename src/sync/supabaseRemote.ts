@@ -1,5 +1,5 @@
 import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js'
-import { toNoteColor, type NoteData } from '../notes/types'
+import { isNoteColor, toNoteColor, type ColorLabelData, type NoteData } from '../notes/types'
 import { QuotaExceededError, RateLimitedError, type NotesRemote, type PullPage } from './remote'
 
 const PAGE_SIZE = 500
@@ -39,6 +39,22 @@ function fromRow(row: NoteRow): NoteData {
   }
 }
 
+interface ColorLabelRow {
+  color: string
+  name: string
+  updated_at: string
+}
+
+function toLabelRow({ color, name, updatedAt }: ColorLabelData): ColorLabelRow {
+  return { color, name, updated_at: new Date(updatedAt).toISOString() }
+}
+
+function fromLabelRows(rows: ColorLabelRow[]): ColorLabelData[] {
+  return rows.flatMap((row) =>
+    isNoteColor(row.color) ? [{ color: row.color, name: row.name, updatedAt: Date.parse(row.updated_at) }] : [],
+  )
+}
+
 function toSyncError(error: PostgrestError): Error {
   if (error.code === 'PT429') return new RateLimitedError()
   if (error.code === 'PT413') return new QuotaExceededError()
@@ -61,6 +77,12 @@ export function createSupabaseRemote(client: SupabaseClient): NotesRemote {
         cursor: rows.at(-1)?.server_updated_at ?? null,
         hasMore: rows.length === PAGE_SIZE,
       }
+    },
+
+    async syncColorLabels(labels) {
+      const { data, error } = await client.rpc('sync_color_labels', { payload: labels.map(toLabelRow) })
+      if (error) throw toSyncError(error)
+      return fromLabelRows((data ?? []) as ColorLabelRow[])
     },
   }
 }

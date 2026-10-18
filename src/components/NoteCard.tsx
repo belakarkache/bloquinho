@@ -3,6 +3,7 @@ import { motion, type PanInfo } from 'motion/react'
 import type { MouseEvent, Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toNoteView, type NoteBlock } from '../notes/checklist'
+import { useColorNames } from '../notes/colorNames'
 import type { Note } from '../notes/types'
 import { plainInline } from '../notes/markdown'
 import { ChecklistBox } from './ChecklistBox'
@@ -148,6 +149,7 @@ export function NoteCard({
   onDragEnd,
 }: NoteCardProps) {
   const { t } = useTranslation()
+  const category = useColorNames().customName(note.color)
   const { title, blocks } = toNoteView(note.content)
   const { frameRef, contentRef, overflowing } = useOverflow<HTMLDivElement, HTMLDivElement>()
   const drag = useCardDrag()
@@ -223,6 +225,11 @@ export function NoteCard({
         >
           <PushPinIcon size={18} weight="fill" />
         </motion.span>
+      )}
+      {category && (
+        <span className="pointer-events-none absolute bottom-4 left-3 max-w-[calc(100%-6.5rem)] truncate rounded-full bg-ink/8 px-2 py-0.5 text-[11.5px] font-semibold text-ink-soft transition-opacity duration-200 [@media(hover:hover)]:max-w-[calc(100%-1.5rem)] [@media(hover:hover)]:group-focus-within/card:opacity-0 [@media(hover:hover)]:group-hover/card:opacity-0">
+          {category}
+        </span>
       )}
       <div className="absolute right-2 bottom-2 flex gap-0.5 transition-opacity duration-200 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/card:opacity-100 [@media(hover:hover)]:group-hover/card:opacity-100">
         <PinButton

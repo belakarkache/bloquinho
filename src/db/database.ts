@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import { toNoteColor, type Note } from '../notes/types'
+import { toNoteColor, type ColorLabel, type Note } from '../notes/types'
 
 export interface MetaEntry {
   key: string
@@ -9,6 +9,7 @@ export interface MetaEntry {
 export class BloquinhoDB extends Dexie {
   notes!: EntityTable<Note, 'id'>
   meta!: EntityTable<MetaEntry, 'key'>
+  colorLabels!: EntityTable<ColorLabel, 'color'>
 
   constructor(name = 'bloquinho') {
     super(name)
@@ -24,10 +25,17 @@ export class BloquinhoDB extends Dexie {
           note.color = toNoteColor(note.color)
         }),
     )
+    this.version(3).stores({
+      colorLabels: 'color, syncState',
+    })
   }
 
   pendingNotes() {
     return this.notes.where('syncState').equals('pending')
+  }
+
+  pendingColorLabels() {
+    return this.colorLabels.where('syncState').equals('pending')
   }
 
   async getMeta(key: string): Promise<string | null> {
@@ -40,9 +48,10 @@ export class BloquinhoDB extends Dexie {
   }
 
   async clearAll(): Promise<void> {
-    await this.transaction('rw', this.notes, this.meta, async () => {
+    await this.transaction('rw', this.notes, this.meta, this.colorLabels, async () => {
       await this.notes.clear()
       await this.meta.clear()
+      await this.colorLabels.clear()
     })
   }
 }

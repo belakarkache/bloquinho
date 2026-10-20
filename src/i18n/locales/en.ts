@@ -116,6 +116,11 @@ export const en: Translation = {
     open: 'Open menu',
     title: 'Menu',
   },
+  update: {
+    available: 'New version available',
+    reload: 'Update',
+    dismiss: 'Not now',
+  },
   install: {
     action: 'Install app',
     title: 'Install Bloquinho',

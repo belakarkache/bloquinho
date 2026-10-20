@@ -23,6 +23,7 @@ import {
   joinWithPrevious,
   pasteLines,
   toggleLineChecked,
+  convertListBlock,
   toggleCodeFence,
   toggleLineKind,
   type EditorLine,
@@ -73,6 +74,16 @@ function offsetAtPoint(element: Element, x: number, y: number): number {
     offset += length
   }
   return best
+}
+
+function offsetWithin(overlay: Element | null | undefined, node: Node, offset: number, length: number): number {
+  if (!overlay) return 0
+  const range = document.createRange()
+  range.selectNodeContents(overlay)
+  const position = range.comparePoint(node, offset)
+  if (position !== 0) return position < 0 ? 0 : length
+  range.setEnd(node, offset)
+  return Math.min(range.toString().length, length)
 }
 
 const COLLAPSE_TO_START = new Set(['ArrowUp', 'ArrowLeft', 'Home', 'PageUp'])
@@ -237,6 +248,38 @@ export function useLineEditor(initialContent: string) {
     if (event.type === 'cut') replaceSelected('')
   }
 
+  const documentSelection = (): LineSelection | null => {
+    const native = window.getSelection()
+    const range = native?.rangeCount ? native.getRangeAt(0) : null
+    if (!range || range.collapsed) return null
+    const touched = lines.flatMap((line, index) => {
+      const row = inputs.current.get(line.id)?.parentElement
+      return row && range.intersectsNode(row) ? [index] : []
+    })
+    if (touched.length === 0) return null
+    const first = touched[0]
+    const last = touched[touched.length - 1]
+    const overlayOf = (index: number) => inputs.current.get(lines[index].id)?.previousElementSibling
+    return {
+      anchor: {
+        index: first,
+        offset: offsetWithin(overlayOf(first), range.startContainer, range.startOffset, lines[first].text.length),
+      },
+      focus: {
+        index: last,
+        offset: offsetWithin(overlayOf(last), range.endContainer, range.endOffset, lines[last].text.length),
+      },
+    }
+  }
+
+  const copyDocumentSelection = (event: ClipboardEvent<HTMLElement>) => {
+    if (event.defaultPrevented || event.target instanceof HTMLTextAreaElement) return
+    const native = documentSelection()
+    if (!native) return
+    event.preventDefault()
+    event.clipboardData.setData('text/plain', selectedText(lines, native))
+  }
+
   const lineAtPoint = (y: number): number => {
     const index = lines.findIndex((line) => {
       const input = inputs.current.get(line.id)
@@ -324,9 +367,10 @@ export function useLineEditor(initialContent: string) {
 
   const formatLine = (index: number, action: FormatAction, { start, end }: { start: number; end: number }) => {
     const line = lines[index]
-    if (action === 'heading' || action === 'bullet' || action === 'ordered') {
-      return applyEdit(formatLineBlock(lines, index, action, start))
+    if (action === 'bullet' || action === 'ordered') {
+      return applyEdit(convertListBlock(lines, index, action) ?? formatLineBlock(lines, index, action, start))
     }
+    if (action === 'heading') return applyEdit(formatLineBlock(lines, index, action, start))
     if (action === 'codeBlock') return applyEdit(toggleCodeFence(lines, index, start, newLineId))
     const edit = action === 'link' ? insertLink(line.text, start, end) : toggleInline(line.text, start, end, action)
     const next = lines.map((current, position) => (position === index ? { ...current, text: edit.content } : current))
@@ -362,6 +406,7 @@ export function useLineEditor(initialContent: string) {
     onKeyDown,
     onPointerDown,
     copySelection,
+    copyDocumentSelection,
     onPaste,
     pasteText,
     toggleChecked,

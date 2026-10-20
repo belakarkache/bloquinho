@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type KeyboardEvent } from 'react'
-import { toggleChecklist, type TextEdit } from '../notes/checklist'
-import { continueList, formatShortcut, formatText, type FormatAction } from '../notes/formatting'
+import type { TextEdit } from '../notes/checklist'
+import { continueList, formatShortcut, formatText, toggleList, type FormatAction } from '../notes/formatting'
 import { NOTE_MAX_LENGTH } from '../notes/types'
 import { insertTranscript } from '../voice/transcript'
 
@@ -46,7 +46,7 @@ export function useChecklistTextarea(content: string, setContent: (content: stri
   const toggle = () => {
     const textarea = textareaRef.current
     if (!textarea) return
-    apply(toggleChecklist(content, textarea.selectionStart, textarea.selectionEnd))
+    apply(toggleList(content, textarea.selectionStart, textarea.selectionEnd))
     textarea.focus()
   }
 

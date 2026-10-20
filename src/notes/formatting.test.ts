@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { continueList, formatShortcut, insertLink, toggleBlock, toggleCodeBlock, toggleInline } from './formatting'
+import {
+  continueList,
+  formatShortcut,
+  formatText,
+  insertLink,
+  toggleBlock,
+  toggleCodeBlock,
+  toggleInline,
+  toggleList,
+} from './formatting'
 
 describe('toggleInline', () => {
   it('wraps the selection and keeps it selected', () => {
@@ -73,6 +82,29 @@ describe('toggleBlock', () => {
   it('replaces another list kind', () => {
     expect(toggleBlock('- [ ] a', 0, 0, 'bullet').content).toBe('- a')
     expect(toggleBlock('1. a', 0, 0, 'bullet').content).toBe('- a')
+  })
+})
+
+describe('list conversion', () => {
+  it('turns the whole list under the caret into a checklist', () => {
+    expect(toggleList('a\n- b\n- c\nd', 4, 4)).toEqual({
+      content: 'a\n- [ ] b\n- [ ] c\nd',
+      selectionStart: 9,
+      selectionEnd: 9,
+    })
+  })
+
+  it('turns a whole checklist into a numbered list', () => {
+    expect(formatText('- [x] a\n- [ ] b', 0, 0, 'ordered').content).toBe('1. a\n2. b')
+  })
+
+  it('strips list markers when checking selected lines', () => {
+    expect(toggleList('- a\n1. b', 0, 8).content).toBe('- [ ] a\n- [ ] b')
+  })
+
+  it('toggles plain lines as before', () => {
+    expect(toggleList('a', 1, 1).content).toBe('- [ ] a')
+    expect(toggleList('- [ ] a', 0, 0).content).toBe('a')
   })
 })
 

@@ -18,6 +18,7 @@ import { useOverflow } from './useMeasure'
 
 interface NoteCardProps {
   note: Note
+  open: boolean
   position: MasonryPosition
   measured: boolean
   measureRef: Ref<HTMLElement>
@@ -37,6 +38,7 @@ function tiltFor(id: string): number {
 }
 
 const PREVIEW_BLOCKS = 10
+const CONTENT_RETURN = { delay: 0.12, duration: 0.18 }
 
 type ListBlock = Extract<NoteBlock, { kind: 'item' | 'bullet' | 'ordered' }>
 type BodySection = Exclude<NoteBlock, ListBlock> | { kind: 'list'; type: ListBlock['kind']; items: ListBlock[] }
@@ -136,6 +138,7 @@ function NoteBody({ blocks, onToggleItem }: { blocks: NoteBlock[]; onToggleItem:
 
 export function NoteCard({
   note,
+  open,
   position,
   measured,
   measureRef,
@@ -202,7 +205,9 @@ export function NoteCard({
         aria-label={title ? `${t('note.open')}: ${plainInline(title)}` : t('note.open')}
         className="absolute inset-0 rounded-[22px]"
       />
-      <div
+      <motion.div
+        initial={false}
+        animate={{ opacity: open ? 0 : 1, transition: open ? { duration: 0 } : CONTENT_RETURN }}
         ref={frameRef}
         className={`pointer-events-none relative min-h-0 overflow-hidden px-4 pt-4 ${overflowing ? 'mask-[linear-gradient(to_bottom,black_calc(100%-3rem),transparent)]' : ''}`}
       >
@@ -214,7 +219,7 @@ export function NoteCard({
           )}
           {blocks.length > 0 && <NoteBody blocks={blocks} onToggleItem={(line) => onToggleItem(note, line)} />}
         </div>
-      </div>
+      </motion.div>
       {note.pinned && (
         <motion.span
           initial={{ scale: 0, rotate: 45 }}

@@ -35,7 +35,7 @@ export function ModalDialog({ ref, onClose, onEscape = onClose, className = '', 
         animate={{ opacity: 1 }}
         exit={{ opacity: 0, transition: quickFade }}
         onClick={onClose}
-        className="absolute inset-0 bg-(--scrim) backdrop-blur-[3px]"
+        className="absolute inset-0 bg-(--scrim) sm:backdrop-blur-[3px]"
         aria-hidden="true"
       />
       {children}

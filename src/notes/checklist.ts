@@ -75,6 +75,11 @@ export function lineEndAt(content: string, position: number): number {
   return lineBreak === -1 ? content.length : lineBreak
 }
 
+function listBody(line: string): string {
+  const kind = classifyLine(line)
+  return kind.kind === 'bullet' || kind.kind === 'ordered' ? kind.text : line
+}
+
 export function toggleChecklist(content: string, selectionStart: number, selectionEnd: number): TextEdit {
   const blockStart = lineStartAt(content, selectionStart)
   const blockEnd = lineEndAt(content, selectionEnd)
@@ -83,7 +88,7 @@ export function toggleChecklist(content: string, selectionStart: number, selecti
   const updated = lines.map((line) => {
     const item = parseItem(line)
     if (removing) return item?.text ?? line
-    return item ? line : UNCHECKED_PREFIX + line
+    return item ? line : UNCHECKED_PREFIX + listBody(line)
   })
   const block = updated.join('\n')
   const next = content.slice(0, blockStart) + block + content.slice(blockEnd)

@@ -12,7 +12,7 @@ import { noteGroups } from './contextMenuEntries'
 import { IconButton } from './IconButton'
 import { LineEditor } from './LineEditor'
 import { ModalDialog } from './ModalDialog'
-import { gentle, pressable } from './motion'
+import { expand, pressable, quickFade } from './motion'
 import { FormatToolbar } from './FormatToolbar'
 import { DeleteButton, PinButton } from './NoteButtons'
 import { useLineEditor } from './useLineEditor'
@@ -109,16 +109,18 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
       <motion.div
         layoutId={note.id}
         data-color={note.color}
-        transition={gentle}
+        exit={{ opacity: 0, transition: quickFade }}
+        transition={expand}
         onContextMenu={(event) =>
           openMenu(event, noteGroups(t, note, { onTogglePin: togglePin, onColor: changeColor, onDelete: deleteNote }))
         }
         className={`note-surface relative flex h-full w-full flex-col overflow-hidden pt-[env(safe-area-inset-top)] transition-[background-color,border-color] duration-300 max-sm:border-0! sm:rounded-[28px] sm:pt-0 ${expanded ? '' : 'sm:h-auto sm:max-h-[min(44rem,calc(100dvh-2rem))] sm:max-w-2xl'}`}
       >
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0, transition: { delay: 0.08 } }}
-          exit={{ opacity: 0, transition: { duration: 0.08 } }}
+          layout
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ opacity: { duration: 0.15 }, layout: expand }}
           className="flex min-h-0 flex-1 flex-col"
         >
           <LineEditor editor={editor} className={expanded ? EXPANDED_PADDING : undefined} />

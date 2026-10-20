@@ -1,5 +1,13 @@
 import { fromLines, parseItem, toLines, type NoteLine } from './checklist'
-import { blockBody, blockFormatOf, blockMarker, nextOrderedNumber, type BlockFormat } from './formatting'
+import {
+  blockBody,
+  blockFormatOf,
+  blockMarker,
+  convertList,
+  nextOrderedNumber,
+  type BlockFormat,
+  type ListFormat,
+} from './formatting'
 import { classifyLine, FENCE_MARKER, fenceStates, isFence, nextListMarker } from './markdown'
 
 export interface EditorLine extends NoteLine {
@@ -113,7 +121,16 @@ export function pasteLines(
   }
 }
 
+export function convertListBlock(lines: EditorLine[], index: number, target: ListFormat): LinesEdit | null {
+  const converted = convertList(lines, index, target)
+  if (!converted) return null
+  const line = converted[index]
+  return { lines: converted, focus: { id: line.id, caret: line.text.length } }
+}
+
 export function toggleLineKind(lines: EditorLine[], index: number): LinesEdit {
+  const converted = convertListBlock(lines, index, 'item')
+  if (converted) return converted
   const line = lines[index]
   const toggled = { ...line, checked: line.checked === null ? false : null }
   return {

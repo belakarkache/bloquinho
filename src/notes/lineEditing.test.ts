@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { fromLines } from './checklist'
 import {
   breakLine,
+  convertListBlock,
   extendSelection,
   lineSpan,
   replaceSelection,
@@ -131,6 +132,20 @@ describe('toggles', () => {
     const asItem = toggleLineKind(lines, 0).lines
     expect(fromLines(asItem)).toBe('- [ ] leite')
     expect(fromLines(toggleLineKind(asItem, 0).lines)).toBe('leite')
+  })
+
+  it('turns a whole list into a checklist and back', () => {
+    const lines = linesOf('Compras\n- pão\n- leite\n\nfim')
+    const asItems = toggleLineKind(lines, 2)
+    expect(fromLines(asItems.lines)).toBe('Compras\n- [ ] pão\n- [ ] leite\n\nfim')
+    expect(asItems.focus).toEqual({ id: 'line-2', caret: 5 })
+    expect(fromLines(convertListBlock(asItems.lines, 1, 'ordered')!.lines)).toBe('Compras\n1. pão\n2. leite\n\nfim')
+  })
+
+  it('leaves lines that are not lists to the regular toggles', () => {
+    expect(convertListBlock(linesOf('leite'), 0, 'item')).toBeNull()
+    expect(convertListBlock(linesOf('- [ ] leite'), 0, 'item')).toBeNull()
+    expect(convertListBlock(linesOf('```\n- a\n```'), 1, 'item')).toBeNull()
   })
 
   it('checks items and ignores text lines', () => {

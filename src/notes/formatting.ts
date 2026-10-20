@@ -1,9 +1,20 @@
-import { lineEndAt, lineStartAt, parseItem, UNCHECKED_PREFIX, type TextEdit } from './checklist'
-import { classifyLine, FENCE_MARKER, isFence, nextListMarker } from './markdown'
+import {
+  fromLines,
+  lineEndAt,
+  lineStartAt,
+  parseItem,
+  toggleChecklist,
+  toLines,
+  UNCHECKED_PREFIX,
+  type NoteLine,
+  type TextEdit,
+} from './checklist'
+import { classifyLine, FENCE_MARKER, fenceStates, isFence, nextListMarker } from './markdown'
 
 export type InlineFormat = 'bold' | 'italic' | 'strike' | 'code'
 export type BlockFormat = 'heading' | 'bullet' | 'ordered'
 export type FormatAction = InlineFormat | BlockFormat | 'link' | 'codeBlock'
+export type ListFormat = 'item' | 'bullet' | 'ordered'
 
 const INLINE_MARKERS: Record<InlineFormat, string> = { bold: '**', italic: '*', strike: '~~', code: '`' }
 const URL_ONLY = /^(?:https?:\/\/|mailto:)\S+$/i
@@ -120,6 +131,45 @@ export function toggleBlock(content: string, start: number, end: number, format:
   return { content: next, selectionStart: caret, selectionEnd: caret }
 }
 
+function listFormatOf(line: NoteLine, insideCode: boolean): ListFormat | null {
+  if (line.checked !== null) return 'item'
+  if (insideCode) return null
+  const format = blockFormatOf(line.text)
+  return format === 'bullet' || format === 'ordered' ? format : null
+}
+
+export function convertList<T extends NoteLine>(lines: T[], index: number, target: ListFormat): T[] | null {
+  const insideCode = fenceStates(lines.map((line) => (line.checked === null ? line.text : '')))
+  const formats = lines.map((line, position) => listFormatOf(line, insideCode[position]))
+  const current = formats[index]
+  if (!current || current === target) return null
+  let start = index
+  while (start > 0 && formats[start - 1]) start -= 1
+  let end = index
+  while (end < lines.length - 1 && formats[end + 1]) end += 1
+  let number = 1
+  const converted = lines.slice(start, end + 1).map((line) => {
+    const body = line.checked === null ? blockBody(line.text) : line.text
+    if (target === 'item') return { ...line, checked: false, text: body }
+    return { ...line, checked: null, text: blockMarker(target, number++) + body }
+  })
+  return [...lines.slice(0, start), ...converted, ...lines.slice(end + 1)]
+}
+
+function convertListAt(content: string, start: number, end: number, target: ListFormat): TextEdit | null {
+  const index = lineIndexAt(content, start)
+  if (index !== lineIndexAt(content, end)) return null
+  const converted = convertList(toLines(content), index, target)
+  if (!converted) return null
+  const next = fromLines(converted)
+  const caret = fromLines(converted.slice(0, index + 1)).length
+  return { content: next, selectionStart: caret, selectionEnd: caret }
+}
+
+export function toggleList(content: string, start: number, end: number): TextEdit {
+  return convertListAt(content, start, end, 'item') ?? toggleChecklist(content, start, end)
+}
+
 function lineIndexAt(content: string, position: number): number {
   return content.slice(0, position).split('\n').length - 1
 }
@@ -171,9 +221,10 @@ export function continueList(content: string, caret: number): TextEdit | null {
 export function formatText(content: string, start: number, end: number, action: FormatAction): TextEdit {
   if (action === 'link') return insertLink(content, start, end)
   if (action === 'codeBlock') return toggleCodeBlock(content, start, end)
-  if (action === 'heading' || action === 'bullet' || action === 'ordered') {
-    return toggleBlock(content, start, end, action)
+  if (action === 'bullet' || action === 'ordered') {
+    return convertListAt(content, start, end, action) ?? toggleBlock(content, start, end, action)
   }
+  if (action === 'heading') return toggleBlock(content, start, end, action)
   return toggleInline(content, start, end, action)
 }
 

@@ -69,6 +69,7 @@ export function LineEditor({ editor, className = 'px-6 pt-6 sm:px-8 sm:pt-8' }: 
       onPointerDown={(event) => {
         if (event.button === 0 && selection) editor.clearSelection()
       }}
+      onCopy={editor.copyDocumentSelection}
       className={`scrollbar-none flex min-h-56 flex-1 flex-col overflow-y-auto pb-3 text-[17px] leading-relaxed ${className}`}
     >
       {lines.map((line, index) => {

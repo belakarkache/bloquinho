@@ -15,6 +15,7 @@ import { NoteGrid } from './components/NoteGrid'
 import { NoteSearch, type NoteSearchHandle } from './components/NoteSearch'
 import type { Neighbors } from './components/reorder'
 import { UndoToast } from './components/UndoToast'
+import { UpdatePrompt } from './components/UpdatePrompt'
 import { toggleItem } from './notes/checklist'
 import { partitionNotes } from './notes/filter'
 import { saveNoteOrder, useNoteOrder } from './notes/noteOrderStore'
@@ -131,6 +132,7 @@ export default function App() {
         <ColorFilter value={colorFilter} onChange={setColorFilter} />
         <NoteGrid
           notes={partitioned}
+          openId={openNote?.id ?? null}
           filtering={colorFilter !== null}
           onOpen={openEditor}
           onToggleItem={(note, line) => void updateNote(note.id, { content: toggleItem(note.content, line) })}
@@ -167,6 +169,7 @@ export default function App() {
       <AnimatePresence>
         {deletedNote && <UndoToast key={deletedNote.id} onUndo={undoDelete} onDismiss={dismissToast} />}
       </AnimatePresence>
+      <UpdatePrompt hidden={openNote !== null || deletedNote !== null} />
     </div>
   )
 }

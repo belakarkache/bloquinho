@@ -20,6 +20,7 @@ import { VoiceModelDialog } from './VoiceModelDialog'
 import { VoicePanel } from './VoicePanel'
 
 const SAVE_DELAY_MS = 400
+const TOUCH_FOCUS_FALLBACK_MS = 600
 const EDITOR_AREA = 'scrollbar-none relative min-h-56 flex-1 overflow-y-auto pb-3 text-[17px] leading-relaxed'
 const DEFAULT_PADDING = 'px-6 pt-6 sm:px-8 sm:pt-8'
 const EXPANDED_PADDING = 'px-6 pt-6 sm:px-[max(2rem,calc(50%_-_24rem))] sm:pt-14'
@@ -43,14 +44,36 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
   const voice = useVoiceInput(editor.insertTranscript)
   const openMenu = useContextMenu()
 
-  const focusInitially = useEffectEvent(() => {
+  const focusedInitially = useRef(false)
+
+  const focusOnce = () => {
+    if (focusedInitially.current) return
+    focusedInitially.current = true
     if (startsInChecklist) dialogRef.current?.focus()
     else focusEnd()
-  })
+  }
+
+  const focusIfUntouched = () => {
+    if (document.activeElement === dialogRef.current) focusOnce()
+  }
+
+  const focusInitially = useEffectEvent(focusOnce)
+  const focusDeferred = useEffectEvent(focusIfUntouched)
 
   useEffect(() => {
-    focusInitially()
+    if (window.matchMedia('(pointer: fine)').matches) {
+      focusInitially()
+      return
+    }
+    dialogRef.current?.focus({ preventScroll: true })
+    const timer = setTimeout(focusDeferred, TOUCH_FOCUS_FALLBACK_MS)
+    return () => clearTimeout(timer)
   }, [])
+
+  const settleLayout = () => {
+    editor.refresh()
+    focusIfUntouched()
+  }
 
   useEffect(() => {
     if (!isBlankNote(content)) lastFilledContent.current = content
@@ -99,7 +122,7 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
     >
       <motion.div
         layoutId={note.id}
-        onLayoutAnimationComplete={editor.refresh}
+        onLayoutAnimationComplete={settleLayout}
         data-color={note.color}
         exit={{ opacity: 0, transition: quickFade }}
         transition={expand}

@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { useEffect, useImperativeHandle, useRef, type ComponentProps, type Ref } from 'react'
+import { useImperativeHandle, useLayoutEffect, useRef, type ComponentProps, type Ref } from 'react'
 import { quickFade } from './motion'
 
 interface ModalDialogProps extends Omit<ComponentProps<'dialog'>, 'ref' | 'onCancel'> {
@@ -12,7 +12,7 @@ export function ModalDialog({ ref, onClose, onEscape = onClose, className = '', 
   const dialogRef = useRef<HTMLDialogElement>(null)
   useImperativeHandle<HTMLDialogElement | null, HTMLDialogElement | null>(ref, () => dialogRef.current, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement
     if (!document.querySelector('dialog[open]')) {
       root.style.setProperty('--scrollbar-width', `${window.innerWidth - root.clientWidth}px`)

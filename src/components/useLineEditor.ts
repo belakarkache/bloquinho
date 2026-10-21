@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -96,6 +97,8 @@ export function useLineEditor(initialContent: string) {
   const pendingFocus = useRef<Focus | null>(null)
   const activeLineId = useRef<string | null>(null)
   const [selection, setSelection] = useState<LineSelection | null>(null)
+  const [touchMode, setTouchMode] = useState(false)
+  const [draggingHandle, setDraggingHandle] = useState(false)
   const content = useMemo(() => fromLines(lines), [lines])
 
   const focusLine = ({ id, caret, end = caret }: Focus) => {
@@ -298,7 +301,13 @@ export function useLineEditor(initialContent: string) {
     return Math.min(offsetAtPoint(overlay, x, y), lines[index].text.length)
   }
 
+  const pointAt = (x: number, y: number): LinePoint => {
+    const index = lineAtPoint(y)
+    return { index, offset: offsetInLine(index, x, y) }
+  }
+
   const onPointerDown = (index: number, event: PointerEvent<HTMLTextAreaElement>) => {
+    setTouchMode(event.pointerType === 'touch')
     if (event.button !== 0 || event.pointerType !== 'mouse' || event.shiftKey) return
     const input = event.currentTarget
     let anchor: LinePoint | null = null
@@ -315,6 +324,55 @@ export function useLineEditor(initialContent: string) {
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', stop)
+  }
+
+  useEffect(() => {
+    if (!touchMode || selection || lines.length === 1) return
+    const adoptNativeSelection = () => {
+      const index = lines.findIndex((line) => inputs.current.get(line.id) === document.activeElement)
+      const input = inputs.current.get(lines[index]?.id)
+      if (!input || input.selectionStart === input.selectionEnd) return
+      const { start, end } = selectionOf(input)
+      const anchor = anchorOf(input)
+      setSelection({ anchor: { index, offset: anchor }, focus: { index, offset: anchor === start ? end : start } })
+      input.setSelectionRange(end, end)
+    }
+    document.addEventListener('selectionchange', adoptNativeSelection)
+    return () => document.removeEventListener('selectionchange', adoptNativeSelection)
+  }, [touchMode, selection, lines])
+
+  const onHandlePointerDown = (edge: 'start' | 'end', event: PointerEvent<HTMLElement>) => {
+    if (!selection) return
+    event.preventDefault()
+    event.stopPropagation()
+    const { start, end } = orderedRange(selection)
+    const anchor = edge === 'start' ? end : start
+    const caret = event.currentTarget.getBoundingClientRect()
+    const grabX = event.clientX - caret.left
+    const grabY = event.clientY - (caret.top + caret.height / 2)
+    setDraggingHandle(true)
+    const move = ({ clientX, clientY }: globalThis.PointerEvent) => {
+      setSelection({ anchor, focus: pointAt(clientX - grabX, clientY - grabY) })
+    }
+    const stop = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+      window.removeEventListener('pointercancel', stop)
+      setDraggingHandle(false)
+      setSelection((current) => (current && isCollapsed(current) ? null : current))
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+    window.addEventListener('pointercancel', stop)
+  }
+
+  const copySelected = () => {
+    if (selection) void navigator.clipboard?.writeText(selectedText(lines, selection))
+  }
+
+  const cutSelected = () => {
+    copySelected()
+    replaceSelected('')
   }
 
   const onPaste = (index: number, event: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -399,12 +457,18 @@ export function useLineEditor(initialContent: string) {
     lines,
     content,
     selection,
+    touchSelection: touchMode && selection !== null,
+    draggingHandle,
     clearSelection: () => setSelection(null),
     selectAll,
     registerInput,
     setText,
     onKeyDown,
     onPointerDown,
+    onHandlePointerDown,
+    copySelected,
+    cutSelected,
+    replaceSelected,
     copySelection,
     copyDocumentSelection,
     onPaste,

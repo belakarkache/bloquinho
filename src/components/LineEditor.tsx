@@ -1,6 +1,6 @@
-import { useMemo, type MouseEvent } from 'react'
+import { useMemo, useRef, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { codeLineStates, lineSpan, type LineSpan } from '../notes/lineEditing'
+import { codeLineStates, lineSpan, orderedRange, type LineSpan } from '../notes/lineEditing'
 import { unlinkInline, unlinkInLine } from '../notes/links'
 import { ChecklistBox } from './ChecklistBox'
 import { useContextMenu } from './contextMenu'
@@ -8,6 +8,7 @@ import { richTextGroups } from './contextMenuEntries'
 import { lineStyle } from './lineStyle'
 import { HighlightedInline, HighlightedLine } from './MarkdownHighlight'
 import { linkIndexIn, useOverlayLinkClick } from './overlayLinks'
+import { SelectionHandles } from './SelectionHandles'
 import type { LineEditorState } from './useLineEditor'
 
 interface LineEditorProps {
@@ -15,14 +16,23 @@ interface LineEditorProps {
   className?: string
 }
 
-function SelectionLayer({ text, span }: { text: string; span: LineSpan }) {
+interface SelectionLayerProps {
+  text: string
+  span: LineSpan
+  start: boolean
+  end: boolean
+}
+
+function SelectionLayer({ text, span, start, end }: SelectionLayerProps) {
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none break-words whitespace-pre-wrap text-transparent [grid-area:1/1]"
     >
       {text.slice(0, span.from)}
+      {start && <span data-selection-edge="start" />}
       <span className="bg-selection">{text.slice(span.from, span.to)}</span>
+      {end && <span data-selection-edge="end" />}
       {span.lineBreak && <span className="inline-block h-[1lh] w-[0.4em] bg-selection align-top" />}
     </div>
   )
@@ -35,6 +45,8 @@ export function LineEditor({ editor, className = 'px-6 pt-6 sm:px-8 sm:pt-8' }: 
   const insideCode = useMemo(() => codeLineStates(lines), [lines])
   const openMenu = useContextMenu()
   const linkClick = useOverlayLinkClick()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const range = selection && orderedRange(selection)
 
   const openLineMenu = (index: number, event: MouseEvent<HTMLTextAreaElement>) => {
     const field = event.currentTarget
@@ -66,11 +78,12 @@ export function LineEditor({ editor, className = 'px-6 pt-6 sm:px-8 sm:pt-8' }: 
 
   return (
     <div
+      ref={containerRef}
       onPointerDown={(event) => {
         if (event.button === 0 && selection) editor.clearSelection()
       }}
       onCopy={editor.copyDocumentSelection}
-      className={`scrollbar-none flex min-h-56 flex-1 flex-col overflow-y-auto pb-3 text-[17px] leading-relaxed ${className}`}
+      className={`scrollbar-none relative flex min-h-56 flex-1 flex-col overflow-y-auto pb-3 text-[17px] leading-relaxed ${className}`}
     >
       {lines.map((line, index) => {
         const span = selection && lineSpan(selection, index, line.text.length)
@@ -86,7 +99,14 @@ export function LineEditor({ editor, className = 'px-6 pt-6 sm:px-8 sm:pt-8' }: 
             <div
               className={`grid min-w-0 flex-1 grid-cols-1 ${line.checked === null ? lineStyle(line.text, insideCode[index]) : ''}`}
             >
-              {span && <SelectionLayer text={line.text} span={span} />}
+              {span && (
+                <SelectionLayer
+                  text={line.text}
+                  span={span}
+                  start={range?.start.index === index}
+                  end={range?.end.index === index}
+                />
+              )}
               <div
                 aria-hidden="true"
                 className={`pointer-events-none break-words whitespace-pre-wrap [grid-area:1/1] ${line.checked ? 'text-ink-faint line-through' : 'text-ink'}`}
@@ -119,6 +139,7 @@ export function LineEditor({ editor, className = 'px-6 pt-6 sm:px-8 sm:pt-8' }: 
         )
       })}
       <div aria-hidden="true" onClick={editor.focusEnd} className="min-h-6 flex-1 cursor-text" />
+      <SelectionHandles editor={editor} containerRef={containerRef} />
     </div>
   )
 }

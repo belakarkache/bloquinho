@@ -128,7 +128,7 @@ export default function App() {
         onLogoClick={focusComposer}
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-4 pb-24 sm:pt-8">
-        <NoteComposer ref={composerRef} onCreate={(draft) => notesRepository.create(draft)} />
+        <NoteComposer ref={composerRef} defaultColor={colorFilter ?? undefined} onCreate={(draft) => notesRepository.create(draft)} />
         <ColorFilter value={colorFilter} onChange={setColorFilter} />
         <NoteGrid
           notes={partitioned}

@@ -37,13 +37,15 @@ export interface NoteComposerHandle {
 
 interface NoteComposerProps {
   ref?: Ref<NoteComposerHandle>
+  defaultColor?: NoteColor
   onCreate: (note: NewNote) => Promise<unknown>
 }
 
-export function NoteComposer({ ref, onCreate }: NoteComposerProps) {
+export function NoteComposer({ ref, defaultColor = 'default', onCreate }: NoteComposerProps) {
   const { t } = useTranslation()
   const [content, setContent] = useState('')
-  const [color, setColor] = useState<NoteColor>('default')
+  const [chosenColor, setColor] = useState<NoteColor | null>(null)
+  const color = chosenColor ?? defaultColor
   const [pinned, setPinned] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [fullscreenHeight, setFullscreenHeight] = useState<number | null>(null)
@@ -97,7 +99,7 @@ export function NoteComposer({ ref, onCreate }: NoteComposerProps) {
 
   const reset = () => {
     setContent('')
-    setColor('default')
+    setColor(null)
     setPinned(false)
     setFullscreenHeight(null)
   }

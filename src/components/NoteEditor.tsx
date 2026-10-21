@@ -2,7 +2,6 @@ import { CheckIcon, CornersInIcon, CornersOutIcon } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { localeFor } from '../i18n'
 import { hasChecklist, isBlankNote } from '../notes/checklist'
 import type { Note, NoteChanges, NoteColor } from '../notes/types'
 import { useVoiceInput } from '../voice/useVoiceInput'
@@ -30,15 +29,6 @@ interface NoteEditorProps {
   onClose: () => void
 }
 
-function useEditedLabel(updatedAt: number): string {
-  const { t, i18n } = useTranslation()
-  const formatter = new Intl.DateTimeFormat(localeFor(i18n.resolvedLanguage), {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
-  return t('note.edited', { time: formatter.format(updatedAt) })
-}
-
 export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProps) {
   const { t } = useTranslation()
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -48,7 +38,6 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
   const lastFilledContent = useRef(note.content)
   const [startsInChecklist] = useState(() => hasChecklist(note.content))
   const [expanded, setExpanded] = useState(false)
-  const editedLabel = useEditedLabel(note.updatedAt)
   const voice = useVoiceInput(editor.insertTranscript)
   const openMenu = useContextMenu()
 
@@ -125,7 +114,6 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
         >
           <LineEditor editor={editor} className={expanded ? EXPANDED_PADDING : undefined} />
           <VoicePanel voice={voice} className="shrink-0 px-6 pb-2 sm:px-8" />
-          <p className="shrink-0 px-6 pb-2 text-right text-xs text-ink-soft sm:px-8">{editedLabel}</p>
           <FormatToolbar
             onFormat={editor.format}
             onToggleChecklist={editor.toggleActiveLine}

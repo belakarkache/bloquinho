@@ -39,7 +39,6 @@ export const pt = {
     editPlaceholder: 'Nota',
     deleted: 'Nota excluída',
     undo: 'Desfazer',
-    edited: 'Editada em {{time}}',
     checklist: 'Lista de tarefas',
     expand: 'Expandir',
     collapse: 'Recolher',

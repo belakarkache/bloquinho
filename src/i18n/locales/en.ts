@@ -41,7 +41,6 @@ export const en: Translation = {
     editPlaceholder: 'Note',
     deleted: 'Note deleted',
     undo: 'Undo',
-    edited: 'Edited {{time}}',
     checklist: 'Checklist',
     expand: 'Expand',
     collapse: 'Collapse',

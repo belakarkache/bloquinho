@@ -334,7 +334,7 @@ describe('context menu', () => {
     renderApp()
     await user.click(await screen.findByRole('button', { name: 'Abrir nota: descartável' }))
     const editor = screen.getByRole('dialog', { name: 'Abrir nota' })
-    const menu = await rightClick(user, within(editor).getByText(/^Editada em/))
+    const menu = await rightClick(user, within(editor).getByRole('button', { name: 'Expandir' }))
     await user.click(within(menu).getByRole('menuitem', { name: 'Excluir' }))
     expect(await screen.findByText('Nota excluída')).toBeInTheDocument()
   })

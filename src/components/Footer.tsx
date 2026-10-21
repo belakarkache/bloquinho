@@ -6,7 +6,7 @@ export function Footer() {
   const { t } = useTranslation()
 
   return (
-    <footer className="px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-sm text-ink-soft">
+    <footer className="px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-[0.6875rem] text-ink-soft">
       {t('footer.developedBy')}{' '}
       <a
         href={AUTHOR_URL}

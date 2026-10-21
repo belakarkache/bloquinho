@@ -58,6 +58,7 @@ export const en: Translation = {
     bullet: 'Bulleted list',
     ordered: 'Numbered list',
     codeBlock: 'Code block',
+    clear: 'Clear formatting',
   },
   voice: {
     record: 'Record voice',

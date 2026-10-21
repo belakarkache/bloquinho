@@ -130,6 +130,7 @@ body {
   --note-edge: color-mix(in oklab, var(--note) 82%, var(--ink) 10%);
   --note-glow: color-mix(in oklab, var(--note) 80%, transparent);
   background-color: var(--note-fill);
+  color: var(--ink);
   border: 1.5px solid var(--note-edge);
   box-shadow:
     0 1px 0 rgb(var(--shadow-ink) / 0.04),

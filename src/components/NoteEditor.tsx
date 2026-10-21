@@ -2,6 +2,7 @@ import { CheckIcon, CornersInIcon, CornersOutIcon } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useMarkdownEditor } from '../editor/useMarkdownEditor'
 import { hasChecklist, isBlankNote } from '../notes/checklist'
 import type { Note, NoteChanges, NoteColor } from '../notes/types'
 import { useVoiceInput } from '../voice/useVoiceInput'
@@ -9,17 +10,18 @@ import { ColorPicker } from './ColorPicker'
 import { useContextMenu } from './contextMenu'
 import { noteGroups } from './contextMenuEntries'
 import { IconButton } from './IconButton'
-import { LineEditor } from './LineEditor'
+import { MarkdownEditor } from './MarkdownEditor'
 import { ModalDialog } from './ModalDialog'
 import { expand, pressable, quickFade } from './motion'
 import { FormatToolbar } from './FormatToolbar'
 import { DeleteButton, PinButton } from './NoteButtons'
-import { useLineEditor } from './useLineEditor'
 import { VoiceButton } from './VoiceButton'
 import { VoiceModelDialog } from './VoiceModelDialog'
 import { VoicePanel } from './VoicePanel'
 
 const SAVE_DELAY_MS = 400
+const EDITOR_AREA = 'scrollbar-none relative min-h-56 flex-1 overflow-y-auto pb-3 text-[17px] leading-relaxed'
+const DEFAULT_PADDING = 'px-6 pt-6 sm:px-8 sm:pt-8'
 const EXPANDED_PADDING = 'px-6 pt-6 sm:px-[max(2rem,calc(50%_-_24rem))] sm:pt-14'
 
 interface NoteEditorProps {
@@ -32,7 +34,7 @@ interface NoteEditorProps {
 export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProps) {
   const { t } = useTranslation()
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const editor = useLineEditor(note.content)
+  const editor = useMarkdownEditor(note.content, t('note.editPlaceholder'))
   const { content, focusEnd } = editor
   const savedContent = useRef(content)
   const lastFilledContent = useRef(note.content)
@@ -97,6 +99,7 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
     >
       <motion.div
         layoutId={note.id}
+        onLayoutAnimationComplete={editor.refresh}
         data-color={note.color}
         exit={{ opacity: 0, transition: quickFade }}
         transition={expand}
@@ -110,13 +113,14 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ opacity: { duration: 0.15 }, layout: expand }}
+          onAnimationComplete={editor.refresh}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <LineEditor editor={editor} className={expanded ? EXPANDED_PADDING : undefined} />
+          <MarkdownEditor editor={editor} className={`${EDITOR_AREA} ${expanded ? EXPANDED_PADDING : DEFAULT_PADDING}`} />
           <VoicePanel voice={voice} className="shrink-0 px-6 pb-2 sm:px-8" />
           <FormatToolbar
             onFormat={editor.format}
-            onToggleChecklist={editor.toggleActiveLine}
+            onToggleChecklist={editor.toggleChecklist}
             className="shrink-0 border-t border-ink/10 px-3 py-1 sm:px-5"
           />
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-ink/10 px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-5 sm:pb-2.5">

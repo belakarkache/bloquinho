@@ -56,6 +56,7 @@ export const pt = {
     bullet: 'Lista com marcadores',
     ordered: 'Lista numerada',
     codeBlock: 'Bloco de código',
+    clear: 'Limpar formatação',
   },
   voice: {
     record: 'Gravar por voz',

@@ -38,6 +38,13 @@ export function FormatToolbar({ onFormat, onToggleChecklist, className = '' }: F
         onMouseDown={keepFocus}
         onClick={onToggleChecklist}
       />
+      <IconButton
+        icon={FORMAT_ICONS.clear}
+        size="sm"
+        label={t('format.clear')}
+        onMouseDown={keepFocus}
+        onClick={() => onFormat('clear')}
+      />
     </div>
   )
 }

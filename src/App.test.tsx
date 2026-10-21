@@ -6,6 +6,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { ContextMenuProvider } from './components/ContextMenu'
 import { db } from './db/database'
 import { notesRepository } from './notes/repository'
+import { editorText, selectInEditor } from './test/editor'
 
 function renderApp() {
   return render(
@@ -35,7 +36,7 @@ describe('App', () => {
     await user.keyboard('# Mercado{Enter}leite{Control>}{Enter}{/Control}')
     expect(await screen.findByRole('heading', { name: 'Mercado' })).toBeInTheDocument()
     expect(screen.getByText('leite')).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Anote algo…' })).toHaveValue('')
+    expect(editorText(screen.getByRole('textbox', { name: 'Anote algo…' }))).toBe('')
   })
 
   it('focuses the composer when the logo is clicked', async () => {
@@ -168,7 +169,7 @@ describe('App', () => {
     await user.keyboard('Mercado{Enter}leite')
     await user.click(screen.getByRole('button', { name: 'Lista de tarefas' }))
     await user.keyboard('{Enter}pão{Enter}{Enter}fim')
-    expect(screen.getByRole('textbox', { name: 'Anote algo…' })).toHaveValue('Mercado\n- [ ] leite\n- [ ] pão\nfim')
+    expect(editorText(screen.getByRole('textbox', { name: 'Anote algo…' }))).toBe('Mercado\n- [ ] leite\n- [ ] pão\nfim')
   })
 
   it('shows a checklist in the editor and checks items there', async () => {
@@ -178,11 +179,14 @@ describe('App', () => {
     await user.click(await screen.findByRole('button', { name: 'Abrir nota: Mercado' }))
     const editor = screen.getByRole('dialog', { name: 'Abrir nota' })
     expect(within(editor).queryByText('- [ ] leite')).not.toBeInTheDocument()
-    expect(within(editor).getByRole('textbox', { name: 'Item da lista' })).not.toHaveFocus()
+    const field = within(editor).getByRole('textbox', { name: 'Nota' })
+    expect(field).not.toHaveFocus()
 
     await user.click(within(editor).getByRole('checkbox', { name: 'leite' }))
-    await user.click(within(editor).getByRole('textbox', { name: 'Item da lista' }))
-    await user.keyboard('{End}{Enter}pão')
+    expect(field).not.toHaveFocus()
+    await user.click(field)
+    selectInEditor(field, editorText(field).length)
+    await user.keyboard('{Enter}pão')
     await user.click(screen.getByRole('button', { name: 'Concluir' }))
     await waitFor(async () =>
       expect((await notesRepository.listVisible())[0].content).toBe('# Mercado\n- [x] leite\n- [ ] pão'),
@@ -318,14 +322,14 @@ describe('context menu', () => {
   it('formats the composer text from its menu', async () => {
     const user = userEvent.setup()
     renderApp()
-    const composer = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Anote algo…' })
+    const composer = screen.getByRole('textbox', { name: 'Anote algo…' })
     await user.type(composer, 'ideia')
-    composer.setSelectionRange(0, 5)
+    selectInEditor(composer, 0, 5)
     fireEvent.contextMenu(composer, { clientX: 20, clientY: 20 })
     const menu = await screen.findByRole('menu')
     expect(within(menu).getByRole('menuitem', { name: 'Recortar' })).not.toHaveAttribute('aria-disabled', 'true')
     await user.click(within(menu).getByRole('menuitem', { name: 'Negrito (Ctrl+B)' }))
-    expect(composer).toHaveValue('**ideia**')
+    expect(editorText(composer)).toBe('**ideia**')
   })
 
   it('deletes the open note from the editor menu', async () => {

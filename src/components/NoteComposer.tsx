@@ -2,6 +2,7 @@ import { CornersInIcon, CornersOutIcon, NotePencilIcon } from '@phosphor-icons/r
 import { AnimatePresence, motion } from 'motion/react'
 import {
   useEffect,
+  useEffectEvent,
   useImperativeHandle,
   useRef,
   useState,
@@ -11,20 +12,16 @@ import {
   type Ref,
 } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useMarkdownEditor } from '../editor/useMarkdownEditor'
 import { isBlankNote } from '../notes/checklist'
-import { unlinkInContent } from '../notes/links'
-import { NOTE_MAX_LENGTH, type NewNote, type NoteColor } from '../notes/types'
+import type { NewNote, NoteColor } from '../notes/types'
 import { useVoiceInput } from '../voice/useVoiceInput'
 import { ColorPicker } from './ColorPicker'
-import { useContextMenu } from './contextMenu'
-import { richTextGroups } from './contextMenuEntries'
 import { FormatToolbar } from './FormatToolbar'
 import { IconButton } from './IconButton'
-import { HighlightedContent } from './MarkdownHighlight'
+import { MarkdownEditor } from './MarkdownEditor'
 import { pressable, reveal } from './motion'
 import { PinButton } from './NoteButtons'
-import { linkIndexIn, useOverlayLinkClick } from './overlayLinks'
-import { useChecklistTextarea } from './useChecklistTextarea'
 import { VoiceButton } from './VoiceButton'
 import { VoiceModelDialog } from './VoiceModelDialog'
 import { VoicePanel } from './VoicePanel'
@@ -43,7 +40,6 @@ interface NoteComposerProps {
 
 export function NoteComposer({ ref, defaultColor = 'default', onCreate }: NoteComposerProps) {
   const { t } = useTranslation()
-  const [content, setContent] = useState('')
   const [chosenColor, setColor] = useState<NoteColor | null>(null)
   const color = chosenColor ?? defaultColor
   const [pinned, setPinned] = useState(false)
@@ -51,54 +47,30 @@ export function NoteComposer({ ref, defaultColor = 'default', onCreate }: NoteCo
   const [fullscreenHeight, setFullscreenHeight] = useState<number | null>(null)
   const fullscreen = fullscreenHeight !== null
   const formRef = useRef<HTMLFormElement>(null)
-  const {
-    textareaRef,
-    onKeyDown: onTextareaKeyDown,
-    toggleChecklist,
-    format,
-    insertTranscript,
-  } = useChecklistTextarea(content, setContent)
+  const editor = useMarkdownEditor('', t('composer.placeholder'))
+  const { content, focus } = editor
   const voice = useVoiceInput((transcript) => {
     setExpanded(true)
-    return insertTranscript(transcript)
+    return editor.insertTranscript(transcript)
   })
 
-  const openMenu = useContextMenu()
-  const linkClick = useOverlayLinkClick()
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      focus({ preventScroll: true })
+    },
+  }))
 
-  const openTextMenu = (event: MouseEvent<HTMLTextAreaElement>) => {
-    const unlink = (link: HTMLElement) => {
-      const line = link.closest<HTMLElement>('[data-line]')
-      if (line) setContent(unlinkInContent(content, Number(line.dataset.line), linkIndexIn(line, link)))
-    }
-    openMenu(
-      event,
-      richTextGroups(
-        t,
-        event.currentTarget,
-        { x: event.clientX, y: event.clientY },
-        { format, toggleChecklist, unlink },
-      ),
-    )
-  }
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      focus: () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-        textareaRef.current?.focus({ preventScroll: true })
-      },
-    }),
-    [textareaRef],
-  )
+  const focusOnDesktop = useEffectEvent(() => {
+    if (window.matchMedia('(pointer: fine)').matches) focus()
+  })
 
   useEffect(() => {
-    if (window.matchMedia('(pointer: fine)').matches) textareaRef.current?.focus()
-  }, [textareaRef])
+    focusOnDesktop()
+  }, [])
 
   const reset = () => {
-    setContent('')
+    editor.reset()
     setColor(null)
     setPinned(false)
     setFullscreenHeight(null)
@@ -106,7 +78,7 @@ export function NoteComposer({ ref, defaultColor = 'default', onCreate }: NoteCo
 
   const toggleFullscreen = () => {
     setFullscreenHeight(fullscreen ? null : (formRef.current?.offsetHeight ?? 0))
-    textareaRef.current?.focus()
+    focus()
   }
 
   const save = async () => {
@@ -153,30 +125,11 @@ export function NoteComposer({ ref, defaultColor = 'default', onCreate }: NoteCo
               <NotePencilIcon size={16} weight="bold" />
             </span>
           </span>
-          <div
-            className={`scrollbar-none grid min-w-0 flex-1 grid-cols-1 overflow-y-auto text-[16px] leading-relaxed ${fullscreen ? 'h-full' : 'max-h-[50vh]'}`}
-          >
-            <div
-              aria-hidden="true"
-              className="pointer-events-none break-words whitespace-pre-wrap text-ink [grid-area:1/1]"
-            >
-              <HighlightedContent content={content} />
-            </div>
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              onKeyDown={onTextareaKeyDown}
-              maxLength={NOTE_MAX_LENGTH}
-              onFocus={() => setExpanded(true)}
-              onContextMenu={openTextMenu}
-              {...linkClick}
-              placeholder={t('composer.placeholder')}
-              aria-label={t('composer.placeholder')}
-              rows={1}
-              className={`field-sizing-content block w-full resize-none overflow-hidden bg-transparent break-words text-transparent caret-ink transition-[min-height] duration-[320ms] ease-out-soft outline-none [grid-area:1/1] placeholder:text-ink-soft ${expanded ? 'min-h-24' : 'min-h-7'}`}
-            />
-          </div>
+          <MarkdownEditor
+            editor={editor}
+            onFocus={() => setExpanded(true)}
+            className={`scrollbar-none min-w-0 flex-1 overflow-y-auto text-[16px] leading-relaxed transition-[min-height] duration-[320ms] ease-out-soft ${fullscreen ? 'h-full' : 'max-h-[50vh]'} ${expanded ? 'min-h-24' : 'min-h-7'}`}
+          />
           <span className="-my-2.5 -mr-2 flex shrink-0 items-center">
             <VoiceButton voice={voice} />
           </span>
@@ -191,7 +144,7 @@ export function NoteComposer({ ref, defaultColor = 'default', onCreate }: NoteCo
               exit={{ height: 0, opacity: 0, transition: { height: reveal, opacity: { duration: 0.12 } } }}
               onMouseDown={keepFocus}
             >
-              <FormatToolbar onFormat={format} onToggleChecklist={toggleChecklist} className="border-t border-ink/10 px-3 py-1" />
+              <FormatToolbar onFormat={editor.format} onToggleChecklist={editor.toggleChecklist} className="border-t border-ink/10 px-3 py-1" />
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ink/10 px-3 py-2.5">
                 <ColorPicker value={color} onChange={setColor} />
                 <div className="ml-auto flex items-center gap-0.5">

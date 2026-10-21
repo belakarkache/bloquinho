@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { editorText, selectInEditor } from '../test/editor'
 import { NoteComposer } from './NoteComposer'
 
 class FakeRecognition {
@@ -71,7 +72,7 @@ describe('NoteComposer voice input', () => {
   })
 
   it('transcribes into the note when the hold is released', async () => {
-    const textarea = renderComposer()
+    const field = renderComposer()
     fireEvent.pointerDown(micButton(), { button: 0, pointerId: 1, clientX: 100, clientY: 100 })
     await act(async () => {})
     const recognition = latestRecognition()
@@ -83,11 +84,11 @@ describe('NoteComposer voice input', () => {
     fireEvent.pointerUp(micButton(), { pointerId: 1 })
     await act(async () => {})
     expect(recognition.stopped).toBe(true)
-    expect(textarea).toHaveValue('Comprar pão')
+    expect(editorText(field)).toBe('Comprar pão')
   })
 
   it('locks on swipe up and transcribes when finished', async () => {
-    const textarea = renderComposer()
+    const field = renderComposer()
     const button = micButton()
     fireEvent.pointerDown(button, { button: 0, pointerId: 1, clientX: 100, clientY: 100 })
     await act(async () => {})
@@ -98,11 +99,11 @@ describe('NoteComposer voice input', () => {
 
     fireEvent.pointerDown(screen.getByRole('button', { name: 'Concluir gravação' }), { button: 0, pointerId: 2 })
     await act(async () => {})
-    expect(textarea).toHaveValue('Ligar para Ana')
+    expect(editorText(field)).toBe('Ligar para Ana')
   })
 
   it('discards the recording when sliding left', async () => {
-    const textarea = renderComposer()
+    const field = renderComposer()
     fireEvent.pointerDown(micButton(), { button: 0, pointerId: 1, clientX: 200, clientY: 100 })
     await act(async () => {})
     act(() => latestRecognition().say('não quero isso'))
@@ -110,20 +111,20 @@ describe('NoteComposer voice input', () => {
     fireEvent.pointerUp(micButton(), { pointerId: 1 })
     await act(async () => {})
     expect(latestRecognition().aborted).toBe(true)
-    expect(textarea).toHaveValue('')
+    expect(editorText(field)).toBe('')
   })
 
   it('inserts at the caret of the focused note', async () => {
     const user = userEvent.setup()
-    const textarea = renderComposer()
-    await user.type(textarea, 'leite café')
-    ;(textarea as HTMLTextAreaElement).setSelectionRange(6, 6)
+    const field = renderComposer()
+    await user.type(field, 'leite café')
+    selectInEditor(field, 6)
     fireEvent.keyDown(micButton(), { key: 'Enter' })
     await act(async () => {})
     act(() => latestRecognition().say('pão'))
     fireEvent.keyDown(screen.getByRole('button', { name: 'Concluir gravação' }), { key: 'Enter' })
     await act(async () => {})
-    expect(textarea).toHaveValue('leite pão café')
+    expect(editorText(field)).toBe('leite pão café')
   })
 
   it('cancels with Escape', async () => {

@@ -8,6 +8,7 @@ import {
   TextHIcon,
   TextItalicIcon,
   TextStrikethroughIcon,
+  TextTSlashIcon,
   type Icon,
 } from '@phosphor-icons/react'
 import type { FormatAction } from '../notes/formatting'
@@ -22,6 +23,7 @@ export const FORMAT_ICONS: Record<FormatAction, Icon> = {
   bullet: ListBulletsIcon,
   ordered: ListNumbersIcon,
   codeBlock: CodeBlockIcon,
+  clear: TextTSlashIcon,
 }
 
 export const INLINE_ACTIONS: FormatAction[] = ['bold', 'italic', 'strike', 'code', 'link']

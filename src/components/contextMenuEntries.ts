@@ -21,7 +21,7 @@ import type { Note, NoteColor } from '../notes/types'
 import { THEME_OPTIONS, type ThemePreference } from '../theme/theme'
 import { menuAction, type MenuAction, type MenuEntry, type MenuGroup } from './contextMenu'
 import { BLOCK_ACTIONS, FORMAT_ICONS, INLINE_ACTIONS } from './formatActions'
-import { openLink, overlayLinkAt } from './overlayLinks'
+import { openLink } from './editorLinks'
 import { shortcutLabel } from './shortcuts'
 import { THEME_ICON } from './themeIcons'
 
@@ -57,35 +57,35 @@ export function linkGroup(t: Translate, href: string, onRemove?: () => void): Me
   ]
 }
 
-interface ClipboardOverrides {
-  paste?: (text: string) => void
-  selectAll?: () => void
-  hasSelection?: boolean
+export interface ClipboardHandlers {
+  hasSelection: boolean
+  editable: boolean
+  copyable?: boolean
+  cut: () => void
+  copy: () => void
+  paste: (text: string) => void
+  selectAll: () => void
 }
 
-export function clipboardGroup(
+function clipboardEntries(
   t: Translate,
-  field: TextField,
-  { paste, selectAll = () => field.select(), hasSelection: selected }: ClipboardOverrides = {},
+  { hasSelection, editable, copyable = true, cut, copy, paste, selectAll }: ClipboardHandlers,
 ): MenuGroup {
-  const hasSelection = selected || field.selectionStart === null || field.selectionStart !== field.selectionEnd
-  const editable = !field.readOnly && !field.disabled
-  const copyable = hasSelection && field.type !== 'password'
-  const insert = paste ?? ((text: string) => runCommand(field, 'insertText', text))
+  const canCopy = hasSelection && copyable
   const canPaste = editable && typeof navigator.clipboard?.readText === 'function'
   return [
-    menuAction(t('contextMenu.cut'), ScissorsIcon, () => runCommand(field, 'cut'), {
+    menuAction(t('contextMenu.cut'), ScissorsIcon, cut, {
       shortcut: shortcutLabel('X'),
-      disabled: !copyable || !editable,
+      disabled: !canCopy || !editable,
     }),
-    menuAction(t('contextMenu.copy'), CopyIcon, () => runCommand(field, 'copy'), {
+    menuAction(t('contextMenu.copy'), CopyIcon, copy, {
       shortcut: shortcutLabel('C'),
-      disabled: !copyable,
+      disabled: !canCopy,
     }),
     menuAction(
       t('contextMenu.paste'),
       ClipboardTextIcon,
-      () => void navigator.clipboard.readText().then(insert, () => {}),
+      () => void navigator.clipboard.readText().then(paste, () => {}),
       {
         shortcut: shortcutLabel('V'),
         disabled: !canPaste,
@@ -93,6 +93,18 @@ export function clipboardGroup(
     ),
     menuAction(t('contextMenu.selectAll'), SelectionAllIcon, selectAll, { shortcut: shortcutLabel('A') }),
   ]
+}
+
+export function clipboardGroup(t: Translate, field: TextField): MenuGroup {
+  return clipboardEntries(t, {
+    hasSelection: field.selectionStart === null || field.selectionStart !== field.selectionEnd,
+    editable: !field.readOnly && !field.disabled,
+    copyable: field.type !== 'password',
+    cut: () => runCommand(field, 'cut'),
+    copy: () => runCommand(field, 'copy'),
+    paste: (text) => runCommand(field, 'insertText', text),
+    selectAll: () => field.select(),
+  })
 }
 
 export function formatGroup(t: Translate, format: (action: FormatAction) => void, toggleChecklist: () => void) {
@@ -109,29 +121,23 @@ export function formatGroup(t: Translate, format: (action: FormatAction) => void
       items: [
         ...BLOCK_ACTIONS.map(formatItem),
         { label: t('note.checklist'), icon: ListChecksIcon, onSelect: toggleChecklist },
+        formatItem('clear'),
       ],
     },
   ] satisfies MenuGroup
 }
 
-interface RichTextHandlers extends ClipboardOverrides {
+interface RichTextHandlers {
+  link: { href: string; unlink?: () => void } | null
+  clipboard: ClipboardHandlers
   format: (action: FormatAction) => void
   toggleChecklist: () => void
-  unlink: (link: HTMLElement) => void
 }
 
-export function richTextGroups(
-  t: Translate,
-  field: HTMLTextAreaElement,
-  point: { x: number; y: number },
-  { format, toggleChecklist, unlink, ...clipboard }: RichTextHandlers,
-): MenuGroup[] {
-  const link = overlayLinkAt(field, point.x, point.y)
-  const href = link?.dataset.href
-  const removable = link?.dataset.link !== undefined
+export function richTextGroups(t: Translate, { link, clipboard, format, toggleChecklist }: RichTextHandlers): MenuGroup[] {
   return [
-    href ? linkGroup(t, href, removable ? () => unlink(link!) : undefined) : [],
-    clipboardGroup(t, field, clipboard),
+    link ? linkGroup(t, link.href, link.unlink) : [],
+    clipboardEntries(t, clipboard),
     formatGroup(t, format, toggleChecklist),
   ]
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  clearFormatting,
   continueList,
   formatShortcut,
   formatText,
@@ -167,5 +168,29 @@ describe('formatShortcut', () => {
     expect(formatShortcut(key('X', { shiftKey: true }))).toBe('strike')
     expect(formatShortcut(key('k'))).toBeNull()
     expect(formatShortcut({ ...key('b'), ctrlKey: false })).toBeNull()
+  })
+})
+
+describe('clearFormatting', () => {
+  it('removes inline marks and headings from the caret line', () => {
+    const content = 'topo\n# **Forte** e _leve_ [site](https://a.dev) `x`\nfim'
+    expect(clearFormatting(content, 8, 8)).toEqual({
+      content: 'topo\nForte e leve site x\nfim',
+      selectionStart: 24,
+      selectionEnd: 24,
+    })
+  })
+
+  it('removes list and checklist markers across a selection', () => {
+    const content = '- **a**\n- [x] ~~b~~\n2. *c*'
+    expect(clearFormatting(content, 0, content.length)).toEqual({
+      content: 'a\nb\nc',
+      selectionStart: 0,
+      selectionEnd: 5,
+    })
+  })
+
+  it('unwraps the code block around the caret without touching its text', () => {
+    expect(clearFormatting('antes\n```\n**x**\n```\ndepois', 12, 12).content).toBe('antes\n**x**\ndepois')
   })
 })

@@ -9,11 +9,11 @@ import {
   type NoteLine,
   type TextEdit,
 } from './checklist'
-import { classifyLine, FENCE_MARKER, fenceStates, isFence, nextListMarker } from './markdown'
+import { classifyLine, FENCE_MARKER, fenceStates, isFence, nextListMarker, plainInline } from './markdown'
 
 export type InlineFormat = 'bold' | 'italic' | 'strike' | 'code'
 export type BlockFormat = 'heading' | 'bullet' | 'ordered'
-export type FormatAction = InlineFormat | BlockFormat | 'link' | 'codeBlock'
+export type FormatAction = InlineFormat | BlockFormat | 'link' | 'codeBlock' | 'clear'
 export type ListFormat = 'item' | 'bullet' | 'ordered'
 
 const INLINE_MARKERS: Record<InlineFormat, string> = { bold: '**', italic: '*', strike: '~~', code: '`' }
@@ -195,6 +195,28 @@ export function toggleCodeBlock(content: string, start: number, end: number): Te
   return { content: fenced.join('\n'), selectionStart: start + shift, selectionEnd: end + shift }
 }
 
+function clearLine(line: string): string {
+  return plainInline(blockBody(line))
+}
+
+export function clearFormatting(content: string, start: number, end: number): TextEdit {
+  const lines = content.split('\n')
+  const insideCode = fenceStates(lines)
+  let first = lineIndexAt(content, start)
+  let last = lineIndexAt(content, end)
+  if (insideCode[first]) while (first > 0 && !isFence(lines[first])) first -= 1
+  if (insideCode[last]) while (last < lines.length - 1 && !isFence(lines[last])) last += 1
+  const cleaned = lines
+    .slice(first, last + 1)
+    .flatMap((line, offset) => (isFence(line) ? [] : [insideCode[first + offset] ? line : clearLine(line)]))
+  const before = lines.slice(0, first)
+  const blockStart = before.length > 0 ? before.join('\n').length + 1 : 0
+  const block = cleaned.join('\n')
+  const next = [...before, ...cleaned, ...lines.slice(last + 1)].join('\n')
+  const blockEnd = blockStart + block.length
+  return { content: next, selectionStart: start === end ? blockEnd : blockStart, selectionEnd: blockEnd }
+}
+
 export function insideCodeBlock(content: string, position: number): boolean {
   return content.slice(0, lineStartAt(content, position)).split('\n').filter(isFence).length % 2 === 1
 }
@@ -221,6 +243,7 @@ export function continueList(content: string, caret: number): TextEdit | null {
 export function formatText(content: string, start: number, end: number, action: FormatAction): TextEdit {
   if (action === 'link') return insertLink(content, start, end)
   if (action === 'codeBlock') return toggleCodeBlock(content, start, end)
+  if (action === 'clear') return clearFormatting(content, start, end)
   if (action === 'bullet' || action === 'ordered') {
     return convertListAt(content, start, end, action) ?? toggleBlock(content, start, end, action)
   }

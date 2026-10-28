@@ -6,11 +6,15 @@ import {
   CloudWarningIcon,
   DeviceMobileIcon,
   DownloadSimpleIcon,
+  FolderIcon,
+  KanbanIcon,
   KeyIcon,
   ListIcon,
+  NotepadIcon,
   XIcon,
   SignInIcon,
   SignOutIcon,
+  SparkleIcon,
   TagIcon,
   TrashIcon,
   type Icon,
@@ -19,9 +23,12 @@ import type { User } from '@supabase/supabase-js'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AiKeyDialog } from '../ai/AiKeyDialog'
 import { hasPasswordLogin, useAuth, useSyncStatus } from '../auth/authContext'
 import { currentLanguage, SUPPORTED_LANGUAGES, type Language } from '../i18n'
 import { promptInstall, useInstallState } from '../lib/install'
+import { FoldersDialog } from '../kanban/FoldersDialog'
+import { navigate, useRoute, type Route } from '../routing/route'
 import type { SyncStatus } from '../sync/SyncManager'
 import { THEME_OPTIONS, useTheme } from '../theme/theme'
 import { AccountDialog, type AccountAction } from './AccountDialog'
@@ -313,7 +320,10 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
   const [accountAction, setAccountAction] = useState<AccountAction | null>(null)
   const [installHelp, setInstallHelp] = useState(false)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
+  const [aiKeyOpen, setAiKeyOpen] = useState(false)
+  const [foldersOpen, setFoldersOpen] = useState(false)
   const install = useInstallState()
+  const route = useRoute()
   const close = useCallback(() => setOpen(false), [])
   const containerRef = useDismiss(open, close)
   const panelId = useId()
@@ -329,6 +339,11 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
     close()
     if (install.canPrompt) void promptInstall()
     else setInstallHelp(true)
+  }
+
+  const goTo = (target: Route) => {
+    close()
+    navigate(target)
   }
 
   const openAccountAction = (action: AccountAction) => {
@@ -359,14 +374,44 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
               }}
             />
             <MenuSection>
+              {route === 'notes' ? (
+                <MenuAction icon={KanbanIcon} onClick={() => goTo('kanbaninho')}>
+                  {t('kanban.name')}
+                </MenuAction>
+              ) : (
+                <MenuAction icon={NotepadIcon} onClick={() => goTo('notes')}>
+                  {t('app.name')}
+                </MenuAction>
+              )}
+              {route === 'notes' ? (
+                <MenuAction
+                  icon={TagIcon}
+                  onClick={() => {
+                    close()
+                    setCategoriesOpen(true)
+                  }}
+                >
+                  {t('categories.action')}
+                </MenuAction>
+              ) : (
+                <MenuAction
+                  icon={FolderIcon}
+                  onClick={() => {
+                    close()
+                    setFoldersOpen(true)
+                  }}
+                >
+                  {t('kanban.folders')}
+                </MenuAction>
+              )}
               <MenuAction
-                icon={TagIcon}
+                icon={SparkleIcon}
                 onClick={() => {
                   close()
-                  setCategoriesOpen(true)
+                  setAiKeyOpen(true)
                 }}
               >
-                {t('categories.action')}
+                {t('ai.action')}
               </MenuAction>
               {!install.installed && (
                 <MenuAction icon={DownloadSimpleIcon} onClick={onInstall}>
@@ -407,6 +452,8 @@ export function AppMenu({ onSignIn }: { onSignIn: () => void }) {
     <AnimatePresence>
       {categoriesOpen && <ColorLabelsDialog onClose={() => setCategoriesOpen(false)} />}
     </AnimatePresence>
+    <AnimatePresence>{foldersOpen && <FoldersDialog onClose={() => setFoldersOpen(false)} />}</AnimatePresence>
+    <AnimatePresence>{aiKeyOpen && <AiKeyDialog onClose={() => setAiKeyOpen(false)} />}</AnimatePresence>
     </>
   )
 }

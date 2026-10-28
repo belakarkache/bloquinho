@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
+import type { Card, Folder } from '../kanban/types'
 import { toNoteColor, type ColorLabel, type Note } from '../notes/types'
 
 interface MetaEntry {
@@ -10,6 +11,8 @@ export class BloquinhoDB extends Dexie {
   notes!: EntityTable<Note, 'id'>
   meta!: EntityTable<MetaEntry, 'key'>
   colorLabels!: EntityTable<ColorLabel, 'color'>
+  cards!: EntityTable<Card, 'id'>
+  folders!: EntityTable<Folder, 'name'>
 
   constructor(name = 'bloquinho') {
     super(name)
@@ -27,6 +30,12 @@ export class BloquinhoDB extends Dexie {
     )
     this.version(3).stores({
       colorLabels: 'color, syncState',
+    })
+    this.version(4).stores({
+      cards: 'id, column, updatedAt, syncState',
+    })
+    this.version(5).stores({
+      folders: 'name, syncState',
     })
   }
 

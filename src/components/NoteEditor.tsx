@@ -26,10 +26,11 @@ interface NoteEditorProps {
   note: Note
   onChange: (id: string, changes: NoteChanges) => Promise<void>
   onDelete: (note: Note) => void
+  onOrganize: (note: Note) => void
   onClose: () => void
 }
 
-export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProps) {
+export function NoteEditor({ note, onChange, onDelete, onOrganize, onClose }: NoteEditorProps) {
   const { t } = useTranslation()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -114,6 +115,15 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
 
   useBackToClose(true, close)
 
+  const organize = () => {
+    if (isBlankNote(content)) return
+    if (content !== savedContent.current) {
+      savedContent.current = content
+      void onChange(note.id, { content })
+    }
+    onOrganize({ ...note, content })
+  }
+
   const startEditing = (position: SourcePosition | null) => {
     flushSync(() => setPreviewing(false))
     if (position) editor.focusLine(position.line, position.column)
@@ -189,6 +199,7 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
           onTogglePin={togglePin}
           onToggleFullscreen={() => setExpanded(!expanded)}
           onDelete={deleteNote}
+          onOrganize={organize}
           onSave={close}
         />
       </motion.div>

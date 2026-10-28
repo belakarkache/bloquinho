@@ -1,7 +1,9 @@
+import { SparkleIcon } from '@phosphor-icons/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { AnimatePresence } from 'motion/react'
-import { useCallback, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { OrganizeResult } from './ai/OrganizeDialog'
 import { useAuth } from './auth/authContext'
 import { AuthDialog } from './components/AuthDialog'
 import { ColorFilter } from './components/ColorFilter'
@@ -9,6 +11,7 @@ import { useContextMenu } from './components/contextMenu'
 import { appGroups, clipboardGroup, isTextField, linkGroup, noteGroups } from './components/contextMenuEntries'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
+import { LogoMark } from './components/Logo'
 import { NoteComposer, type NoteComposerHandle } from './components/NoteComposer'
 import { NoteEditor } from './components/NoteEditor'
 import { NoteGrid } from './components/NoteGrid'
@@ -17,6 +20,7 @@ import type { Neighbors } from './components/reorder'
 import { UndoToast } from './components/UndoToast'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import { useBackgroundMenu } from './components/useBackgroundMenu'
+import { cardsRepository } from './kanban/repository'
 import { toggleItem } from './notes/checklist'
 import { partitionNotes } from './notes/filter'
 import { saveNoteOrder, useNoteOrder } from './notes/noteOrderStore'
@@ -26,6 +30,13 @@ import type { Note, NoteChanges, NoteColor } from './notes/types'
 import { useTheme } from './theme/theme'
 
 const EDITOR_DELETE_FALLBACK_MS = 1_000
+
+const OrganizeDialog = lazy(() => import('./ai/OrganizeDialog'))
+
+interface Organized {
+  note: Note | null
+  cardIds: string[]
+}
 
 function linkHrefAt(target: Element): string | null {
   return target.closest('a[href]')?.getAttribute('href') ?? null
@@ -43,6 +54,8 @@ export default function App() {
   const [editing, setEditing] = useState<Pick<Note, 'id' | 'content'> | null>(null)
   const [deletedNote, setDeletedNote] = useState<Note | null>(null)
   const [signInOpen, setSignInOpen] = useState(false)
+  const [organizing, setOrganizing] = useState<Note | null>(null)
+  const [organized, setOrganized] = useState<Organized | null>(null)
   const order = useNoteOrder()
 
   const gridNotes = useMemo(
@@ -90,6 +103,27 @@ export default function App() {
     [flushEditorDelete],
   )
 
+  const organizeFromEditor = useCallback((note: Note) => {
+    setEditing(null)
+    setOrganizing(note)
+  }, [])
+  const closeOrganize = useCallback(() => setOrganizing(null), [])
+  const finishOrganize = ({ cardIds, deleteNote: removeNote }: OrganizeResult) => {
+    const note = removeNote ? organizing : null
+    setOrganizing(null)
+    if (note) void notesRepository.remove(note.id)
+    setDeletedNote(null)
+    setOrganized({ note, cardIds })
+  }
+  const undoOrganize = () => {
+    if (organized) {
+      void cardsRepository.removeMany(organized.cardIds)
+      if (organized.note) void notesRepository.restore(organized.note)
+    }
+    setOrganized(null)
+  }
+  const dismissOrganized = useCallback(() => setOrganized(null), [])
+
   const openNoteMenu = (note: Note, event: MouseEvent) => {
     const href = linkHrefAt(event.target as Element)
     openMenu(event, [
@@ -125,6 +159,9 @@ export default function App() {
   return (
     <div className="flex min-h-dvh flex-col text-ink" onContextMenu={openAppMenu} onPointerDown={pressBackground}>
       <Header
+        name={t('app.name')}
+        logo={<LogoMark className="size-10" />}
+        logoLabel={t('composer.new')}
         search={<NoteSearch ref={searchRef} notes={notes} onOpen={openEditor} />}
         onSignIn={() => setSignInOpen(true)}
         onLogoClick={focusComposer}
@@ -151,6 +188,7 @@ export default function App() {
             note={openNote}
             onChange={updateNote}
             onDelete={deleteFromEditor}
+            onOrganize={organizeFromEditor}
             onClose={closeEditor}
           />
         )}
@@ -168,9 +206,27 @@ export default function App() {
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {deletedNote && <UndoToast key={deletedNote.id} onUndo={undoDelete} onDismiss={dismissToast} />}
+        {deletedNote && <UndoToast key={deletedNote.id} message={t('note.deleted')} onUndo={undoDelete} onDismiss={dismissToast} />}
       </AnimatePresence>
-      <UpdatePrompt hidden={openNote !== null || deletedNote !== null} />
+      <AnimatePresence>
+        {organizing && (
+          <Suspense key={organizing.id} fallback={null}>
+            <OrganizeDialog note={organizing} onDone={finishOrganize} onClose={closeOrganize} />
+          </Suspense>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {organized && (
+          <UndoToast
+            key={organized.cardIds[0]}
+            message={t('ai.created', { count: organized.cardIds.length })}
+            icon={SparkleIcon}
+            onUndo={undoOrganize}
+            onDismiss={dismissOrganized}
+          />
+        )}
+      </AnimatePresence>
+      <UpdatePrompt hidden={openNote !== null || deletedNote !== null || organizing !== null || organized !== null} />
     </div>
   )
 }

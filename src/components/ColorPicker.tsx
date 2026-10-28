@@ -2,24 +2,34 @@ import { CheckIcon } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { useColorNames } from '../notes/colorNames'
-import { NOTE_COLORS, type NoteColor } from '../notes/types'
+import type { NoteColor } from '../notes/types'
 import { bouncy, snappy } from './motion'
 
-interface ColorPickerProps {
-  value: NoteColor
-  onChange: (color: NoteColor) => void
+interface ColorPickerProps<C extends NoteColor> {
+  value: C
+  onChange: (color: C) => void
+  colors: readonly C[]
+  label?: string
+  customNames?: boolean
 }
 
-export function ColorPicker({ value, onChange }: ColorPickerProps) {
+export function ColorPicker<C extends NoteColor>({
+  value,
+  onChange,
+  colors,
+  label,
+  customNames = true,
+}: ColorPickerProps<C>) {
   const { t } = useTranslation()
-  const { nameOf } = useColorNames()
+  const { nameOf: customNameOf, defaultName } = useColorNames()
+  const nameOf = customNames ? customNameOf : defaultName
   return (
     <div
       role="radiogroup"
-      aria-label={t('note.color')}
+      aria-label={label ?? t('note.color')}
       className="flex w-full justify-between sm:w-auto sm:flex-wrap sm:justify-start sm:gap-1"
     >
-      {NOTE_COLORS.map((color) => {
+      {colors.map((color) => {
         const selected = value === color
         return (
           <motion.button

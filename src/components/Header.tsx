@@ -1,17 +1,17 @@
 import { useMotionValueEvent, useScroll } from 'motion/react'
 import { useState, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
 import { AppMenu } from './AppMenu'
-import { LogoMark } from './Logo'
 
 interface HeaderProps {
-  search: ReactNode
+  name: string
+  logo: ReactNode
+  logoLabel: string
+  search?: ReactNode
   onSignIn: () => void
   onLogoClick: () => void
 }
 
-export function Header({ search, onSignIn, onLogoClick }: HeaderProps) {
-  const { t } = useTranslation()
+export function Header({ name, logo, logoLabel, search, onSignIn, onLogoClick }: HeaderProps) {
   const { scrollY } = useScroll()
   const [scrolled, setScrolled] = useState(false)
   useMotionValueEvent(scrollY, 'change', (value) => setScrolled(value > 8))
@@ -22,15 +22,15 @@ export function Header({ search, onSignIn, onLogoClick }: HeaderProps) {
     >
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:gap-5">
         <h1 className="flex shrink-0">
-          <span className="sr-only">{t('app.name')}</span>
+          <span className="sr-only">{name}</span>
           <button
             type="button"
             onClick={onLogoClick}
-            title={t('composer.new')}
-            aria-label={t('composer.new')}
+            title={logoLabel}
+            aria-label={logoLabel}
             className="flex rounded-xl outline-offset-2"
           >
-            <LogoMark className="size-10" />
+            {logo}
           </button>
         </h1>
         <div className="ml-auto flex items-center gap-1.5">

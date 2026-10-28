@@ -48,13 +48,13 @@ describe('App', () => {
     expect(composer).toHaveFocus()
   })
 
-  it('saves the draft when the composer loses focus', async () => {
+  it('keeps the draft open when the composer loses focus', async () => {
     const user = userEvent.setup()
     renderApp()
     await user.type(screen.getByRole('textbox', { name: 'Anote algo…' }), '# ideia')
     await user.click(document.body)
-    expect(await screen.findByRole('heading', { name: 'ideia' })).toBeInTheDocument()
-    expect(await db.notes.count()).toBe(1)
+    expect(screen.getByRole('button', { name: 'Salvar' })).toBeInTheDocument()
+    expect(await db.notes.count()).toBe(0)
   })
 
   it('filters notes by color', async () => {
@@ -149,7 +149,7 @@ describe('App', () => {
     await waitFor(() => expect(editor).toHaveFocus())
     await user.clear(editor)
     await user.type(editor, '# versão final')
-    await user.click(screen.getByRole('button', { name: 'Concluir' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
     expect(await screen.findByRole('heading', { name: 'versão final' })).toBeInTheDocument()
     expect((await notesRepository.listVisible())[0].content).toBe('# versão final')
   })
@@ -180,15 +180,16 @@ describe('App', () => {
     await user.click(await screen.findByRole('button', { name: 'Abrir nota: Mercado' }))
     const editor = screen.getByRole('dialog', { name: 'Abrir nota' })
     expect(within(editor).queryByText('- [ ] leite')).not.toBeInTheDocument()
-    const field = within(editor).getByRole('textbox', { name: 'Nota' })
-    expect(field).not.toHaveFocus()
+    expect(within(editor).queryByRole('textbox', { name: 'Nota' })).not.toBeInTheDocument()
 
     await user.click(within(editor).getByRole('checkbox', { name: 'leite' }))
-    expect(field).not.toHaveFocus()
-    await user.click(field)
+    const checked = await within(editor).findByRole('checkbox', { name: 'leite', checked: true })
+    await user.click(checked.closest('.cm-line') as HTMLElement)
+    const field = within(editor).getByRole('textbox', { name: 'Nota' })
+    expect(field).toHaveFocus()
     selectInEditor(field, editorText(field).length)
     await user.keyboard('{Enter}pão')
-    await user.click(screen.getByRole('button', { name: 'Concluir' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
     await waitFor(async () =>
       expect((await notesRepository.listVisible())[0].content).toBe('# Mercado\n- [x] leite\n- [ ] pão'),
     )
@@ -202,7 +203,7 @@ describe('App', () => {
     const editor = screen.getByRole('textbox', { name: 'Nota' })
     await waitFor(() => expect(editor).toHaveFocus())
     await user.clear(editor)
-    await user.click(screen.getByRole('button', { name: 'Concluir' }))
+    await user.click(screen.getByRole('button', { name: 'Salvar' }))
     expect(await screen.findByText('Nota excluída')).toBeInTheDocument()
     await waitFor(async () => expect(await notesRepository.listVisible()).toEqual([]))
 

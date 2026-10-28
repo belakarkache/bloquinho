@@ -16,7 +16,7 @@ const FORMAT_KEYS: [string, FormatAction][] = [
   ['Mod-Shift-x', 'strike'],
 ]
 
-const editorTheme = EditorView.theme({
+export const editorTheme = EditorView.theme({
   '&': { flex: '1 1 auto', minHeight: '100%' },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': { fontFamily: 'inherit', lineHeight: 'inherit', overflow: 'visible' },
@@ -27,7 +27,7 @@ const editorTheme = EditorView.theme({
   '.cm-placeholder': { color: 'var(--ink-soft)' },
 })
 
-function changeBetween(previous: string, next: string) {
+export function changeBetween(previous: string, next: string) {
   const limit = Math.min(previous.length, next.length)
   let start = 0
   while (start < limit && previous[start] === next[start]) start += 1
@@ -36,7 +36,7 @@ function changeBetween(previous: string, next: string) {
   return { from: start, to: previous.length - end, insert: next.slice(start, next.length - end) }
 }
 
-export function applyEdit(view: EditorView, edit: TextEdit | null): boolean {
+function applyEdit(view: EditorView, edit: TextEdit | null): boolean {
   if (!edit || edit.content.length > NOTE_MAX_LENGTH) return false
   view.dispatch({
     changes: changeBetween(view.state.doc.toString(), edit.content),
@@ -138,6 +138,13 @@ export function useMarkdownEditor(initialContent: string, label: string) {
       view.focus()
     }, undefined)
 
+  const focusLine = (line: number, column: number) =>
+    withView((view) => {
+      const target = view.state.doc.line(Math.min(line + 1, view.state.doc.lines))
+      view.dispatch({ selection: { anchor: target.from + Math.min(column, target.length) }, scrollIntoView: true })
+      view.focus()
+    }, undefined)
+
   const refresh = () =>
     withView((view) => {
       view.requestMeasure()
@@ -193,6 +200,7 @@ export function useMarkdownEditor(initialContent: string, label: string) {
     view: () => viewRef.current,
     focus,
     focusEnd,
+    focusLine,
     refresh,
     format,
     toggleChecklist,

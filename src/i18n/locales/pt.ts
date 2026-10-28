@@ -7,7 +7,6 @@ export const pt = {
   },
   composer: {
     placeholder: 'Anote algo…',
-    save: 'Salvar',
     new: 'Nova nota',
   },
   search: {
@@ -35,6 +34,7 @@ export const pt = {
     delete: 'Excluir',
     color: 'Cor',
     close: 'Concluir',
+    save: 'Salvar',
     open: 'Abrir nota',
     editPlaceholder: 'Nota',
     deleted: 'Nota excluída',
@@ -43,7 +43,6 @@ export const pt = {
     expand: 'Expandir',
     collapse: 'Recolher',
     emptyItem: 'Item sem texto',
-    item: 'Item da lista',
   },
   format: {
     toolbar: 'Formatação',
@@ -176,7 +175,6 @@ export const pt = {
     showPassword: 'Mostrar senha',
     hidePassword: 'Ocultar senha',
     signOut: 'Sair',
-    account: 'Conta',
     email: 'E-mail',
     password: 'Senha',
     newPassword: 'Nova senha',
@@ -192,7 +190,6 @@ export const pt = {
     noAccount: 'Não tenho conta',
     backToSignIn: 'Voltar para entrar',
     syncPitch: 'Entre para acessar suas notas em qualquer dispositivo. Notas deste aparelho vão para sua conta.',
-    signedInAs: 'Conectado como {{email}}',
     pendingLogout_one: '{{count}} nota ainda não sincronizou e será perdida ao sair. Sair mesmo assim?',
     pendingLogout_other: '{{count}} notas ainda não sincronizaram e serão perdidas ao sair. Sair mesmo assim?',
   },

@@ -10,6 +10,7 @@ import { linkElementAt, useEditorLinkClick } from './editorLinks'
 interface MarkdownEditorProps {
   editor: MarkdownEditorState
   className?: string
+  hidden?: boolean
   onFocus?: (event: FocusEvent<HTMLDivElement>) => void
 }
 
@@ -18,7 +19,7 @@ function runClipboardCommand(editor: MarkdownEditorState, command: 'cut' | 'copy
   document.execCommand(command)
 }
 
-export function MarkdownEditor({ editor, className = '', onFocus }: MarkdownEditorProps) {
+export function MarkdownEditor({ editor, className = '', hidden, onFocus }: MarkdownEditorProps) {
   const { t } = useTranslation()
   const openMenu = useContextMenu()
   const linkClick = useEditorLinkClick()
@@ -59,6 +60,7 @@ export function MarkdownEditor({ editor, className = '', onFocus }: MarkdownEdit
   return (
     <div
       ref={mount}
+      hidden={hidden}
       onContextMenu={openTextMenu}
       onFocus={onFocus}
       {...linkClick}

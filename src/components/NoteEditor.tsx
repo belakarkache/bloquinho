@@ -1,27 +1,24 @@
-import { CheckIcon, CornersInIcon, CornersOutIcon } from '@phosphor-icons/react'
-import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent } from 'react'
+import { motion } from 'motion/react'
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import type { SourcePosition } from '../editor/useChecklistPreview'
 import { useMarkdownEditor } from '../editor/useMarkdownEditor'
-import { hasChecklist, isBlankNote } from '../notes/checklist'
+import { hasChecklist, isBlankNote, toggleItem } from '../notes/checklist'
 import type { Note, NoteChanges, NoteColor } from '../notes/types'
 import { useVoiceInput } from '../voice/useVoiceInput'
-import { ColorPicker } from './ColorPicker'
+import { ChecklistPreview } from './ChecklistPreview'
 import { useContextMenu } from './contextMenu'
 import { noteGroups } from './contextMenuEntries'
-import { IconButton } from './IconButton'
-import { MarkdownEditor } from './MarkdownEditor'
 import { ModalDialog } from './ModalDialog'
-import { expand, pressable, quickFade } from './motion'
-import { FormatToolbar } from './FormatToolbar'
-import { DeleteButton, PinButton } from './NoteButtons'
-import { VoiceButton } from './VoiceButton'
-import { VoiceModelDialog } from './VoiceModelDialog'
-import { VoicePanel } from './VoicePanel'
+import { sheet } from './motion'
+import { NoteForm } from './NoteForm'
+import { isSaveShortcut } from './shortcuts'
+import { useBackToClose } from './useBackToClose'
 
 const SAVE_DELAY_MS = 400
 const TOUCH_FOCUS_FALLBACK_MS = 600
-const EDITOR_AREA = 'scrollbar-none relative min-h-56 flex-1 overflow-y-auto pb-3 text-[17px] leading-relaxed'
+const EDITOR_AREA = 'scrollbar-none relative min-h-56 overflow-y-auto pb-8 text-[17px] leading-relaxed'
 const DEFAULT_PADDING = 'px-6 pt-6 sm:px-8 sm:pt-8'
 const EXPANDED_PADDING = 'px-6 pt-6 sm:px-[max(2rem,calc(50%_-_24rem))] sm:pt-14'
 
@@ -35,14 +32,24 @@ interface NoteEditorProps {
 export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProps) {
   const { t } = useTranslation()
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const editor = useMarkdownEditor(note.content, t('note.editPlaceholder'))
   const { content, focusEnd } = editor
   const savedContent = useRef(content)
   const lastFilledContent = useRef(note.content)
   const [startsInChecklist] = useState(() => hasChecklist(note.content))
+  const [previewing, setPreviewing] = useState(startsInChecklist)
   const [expanded, setExpanded] = useState(false)
   const voice = useVoiceInput(editor.insertTranscript)
   const openMenu = useContextMenu()
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current
+    const card = document.querySelector(`[data-measure-id="${CSS.escape(note.id)}"]`)
+    if (!panel || !card) return
+    const { left, top, width, height } = card.getBoundingClientRect()
+    panel.style.transformOrigin = `${left + width / 2 - panel.offsetLeft}px ${top + height / 2 - panel.offsetTop}px`
+  }, [note.id])
 
   const focusedInitially = useRef(false)
 
@@ -70,7 +77,7 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
     return () => clearTimeout(timer)
   }, [])
 
-  const settleLayout = () => {
+  const settleOpen = () => {
     editor.refresh()
     focusIfUntouched()
   }
@@ -105,78 +112,86 @@ export function NoteEditor({ note, onChange, onDelete, onClose }: NoteEditorProp
     onClose()
   }
 
-  const saveShortcut = (event: KeyboardEvent) => {
-    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 's') return
-    event.preventDefault()
-    close()
+  useBackToClose(true, close)
+
+  const startEditing = (position: SourcePosition | null) => {
+    flushSync(() => setPreviewing(false))
+    if (position) editor.focusLine(position.line, position.column)
+    else focusEnd()
   }
+
+  const editingFirst =
+    <T extends unknown[]>(run: (...args: T) => void) =>
+    (...args: T) => {
+      startEditing(null)
+      run(...args)
+    }
+
+  const formEditor = previewing
+    ? { ...editor, format: editingFirst(editor.format), toggleChecklist: editingFirst(editor.toggleChecklist) }
+    : editor
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (isSaveShortcut(event)) {
+      event.preventDefault()
+      close()
+      return
+    }
+    const typing = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
+    if (previewing && typing && event.target === dialogRef.current) startEditing(null)
+  }
+
+  const editorClassName = `${EDITOR_AREA} ${expanded ? EXPANDED_PADDING : DEFAULT_PADDING}`
 
   return (
     <ModalDialog
       ref={dialogRef}
       onClose={close}
+      onEscape={expanded ? () => setExpanded(false) : close}
       aria-label={t('note.open')}
       tabIndex={-1}
-      onKeyDown={saveShortcut}
+      onKeyDown={handleKeyDown}
       className={`items-center outline-none ${expanded ? 'sm:p-4' : 'sm:p-8'}`}
     >
       <motion.div
-        layoutId={note.id}
-        onLayoutAnimationComplete={settleLayout}
+        ref={panelRef}
+        variants={sheet}
+        initial="closed"
+        animate="open"
+        exit="closed"
+        onAnimationComplete={(definition) => definition === 'open' && settleOpen()}
         data-color={note.color}
-        exit={{ opacity: 0, transition: quickFade }}
-        transition={expand}
         onContextMenu={(event) =>
           openMenu(event, noteGroups(t, note, { onTogglePin: togglePin, onColor: changeColor, onDelete: deleteNote }))
         }
         className={`note-surface relative flex h-full w-full flex-col overflow-hidden pt-[env(safe-area-inset-top)] transition-[background-color,border-color] duration-300 max-sm:border-0! sm:rounded-[28px] sm:pt-0 ${expanded ? '' : 'sm:h-auto sm:max-h-[min(44rem,calc(100dvh-2rem))] sm:max-w-2xl'}`}
       >
-        <motion.div
-          layout
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ opacity: { duration: 0.15 }, layout: expand }}
-          onAnimationComplete={editor.refresh}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <MarkdownEditor editor={editor} className={`${EDITOR_AREA} ${expanded ? EXPANDED_PADDING : DEFAULT_PADDING}`} />
-          <VoicePanel voice={voice} className="shrink-0 px-6 pb-2 sm:px-8" />
-          <FormatToolbar
-            onFormat={editor.format}
-            onToggleChecklist={editor.toggleChecklist}
-            className="shrink-0 border-t border-ink/10 px-3 py-1 sm:px-5"
-          />
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-ink/10 px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-5 sm:pb-2.5">
-            <ColorPicker value={note.color} onChange={changeColor} />
-            <div className="ml-auto flex items-center gap-1">
-              <IconButton
-                icon={expanded ? CornersInIcon : CornersOutIcon}
-                label={expanded ? t('note.collapse') : t('note.expand')}
-                aria-pressed={expanded}
-                onClick={() => setExpanded(!expanded)}
-                className="max-sm:hidden"
+        <NoteForm
+          editor={formEditor}
+          voice={voice}
+          color={note.color}
+          pinned={note.pinned}
+          fullscreen={expanded}
+          variant="sheet"
+          fieldClassName="flex-1"
+          editorClassName={editorClassName}
+          preview={
+            previewing && (
+              <ChecklistPreview
+                content={content}
+                className={`min-w-0 flex-1 ${editorClassName}`}
+                onToggleItem={(line) => editor.replaceContent(toggleItem(content, line))}
+                onEdit={startEditing}
               />
-              <PinButton pinned={note.pinned} onToggle={togglePin} />
-              <DeleteButton onDelete={deleteNote} />
-              <VoiceButton voice={voice} />
-              <motion.button
-                type="button"
-                onClick={close}
-                {...pressable}
-                className="ml-1 inline-flex h-11 items-center gap-1.5 rounded-full bg-ink px-5 text-sm font-semibold text-surface transition-opacity hover:opacity-90"
-              >
-                <CheckIcon size={16} weight="bold" />
-                {t('note.close')}
-              </motion.button>
-            </div>
-          </div>
-        </motion.div>
+            )
+          }
+          onColorChange={changeColor}
+          onTogglePin={togglePin}
+          onToggleFullscreen={() => setExpanded(!expanded)}
+          onDelete={deleteNote}
+          onSave={close}
+        />
       </motion.div>
-      <AnimatePresence>
-        {voice.download?.status === 'confirm' && (
-          <VoiceModelDialog onConfirm={() => void voice.confirmDownload()} onDecline={voice.declineDownload} />
-        )}
-      </AnimatePresence>
     </ModalDialog>
   )
 }

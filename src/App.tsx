@@ -16,6 +16,7 @@ import { NoteSearch, type NoteSearchHandle } from './components/NoteSearch'
 import type { Neighbors } from './components/reorder'
 import { UndoToast } from './components/UndoToast'
 import { UpdatePrompt } from './components/UpdatePrompt'
+import { useBackgroundMenu } from './components/useBackgroundMenu'
 import { toggleItem } from './notes/checklist'
 import { partitionNotes } from './notes/filter'
 import { saveNoteOrder, useNoteOrder } from './notes/noteOrderStore'
@@ -33,6 +34,7 @@ function linkHrefAt(target: Element): string | null {
 export default function App() {
   const { t } = useTranslation()
   const openMenu = useContextMenu()
+  const pressBackground = useBackgroundMenu()
   const { preference: theme, setTheme } = useTheme()
   const searchRef = useRef<NoteSearchHandle>(null)
   const notes = useLiveQuery(() => notesRepository.listVisible(), [], [])
@@ -121,7 +123,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col text-ink" onContextMenu={openAppMenu}>
+    <div className="flex min-h-dvh flex-col text-ink" onContextMenu={openAppMenu} onPointerDown={pressBackground}>
       <Header
         search={<NoteSearch ref={searchRef} notes={notes} onOpen={openEditor} />}
         onSignIn={() => setSignInOpen(true)}
@@ -132,7 +134,6 @@ export default function App() {
         <ColorFilter value={colorFilter} onChange={setColorFilter} />
         <NoteGrid
           notes={partitioned}
-          openId={openNote?.id ?? null}
           filtering={colorFilter !== null}
           onOpen={openEditor}
           onToggleItem={(note, line) => void updateNote(note.id, { content: toggleItem(note.content, line) })}

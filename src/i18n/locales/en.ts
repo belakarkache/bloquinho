@@ -9,7 +9,6 @@ export const en: Translation = {
   },
   composer: {
     placeholder: 'Take a note…',
-    save: 'Save',
     new: 'New note',
   },
   search: {
@@ -37,6 +36,7 @@ export const en: Translation = {
     delete: 'Delete',
     color: 'Color',
     close: 'Done',
+    save: 'Save',
     open: 'Open note',
     editPlaceholder: 'Note',
     deleted: 'Note deleted',
@@ -45,7 +45,6 @@ export const en: Translation = {
     expand: 'Expand',
     collapse: 'Collapse',
     emptyItem: 'Empty item',
-    item: 'List item',
   },
   format: {
     toolbar: 'Formatting',
@@ -178,7 +177,6 @@ export const en: Translation = {
     showPassword: 'Show password',
     hidePassword: 'Hide password',
     signOut: 'Sign out',
-    account: 'Account',
     email: 'Email',
     password: 'Password',
     newPassword: 'New password',
@@ -194,7 +192,6 @@ export const en: Translation = {
     noAccount: "I don't have an account",
     backToSignIn: 'Back to sign in',
     syncPitch: 'Sign in to access your notes on any device. Notes on this device move to your account.',
-    signedInAs: 'Signed in as {{email}}',
     pendingLogout_one: '{{count}} note has not synced yet and will be lost on sign out. Sign out anyway?',
     pendingLogout_other: '{{count}} notes have not synced yet and will be lost on sign out. Sign out anyway?',
   },

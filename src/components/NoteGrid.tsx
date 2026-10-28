@@ -34,7 +34,6 @@ const SECTIONS: Record<string, { icon: Icon; title: 'grid.pinned' | 'grid.others
 
 interface NoteGridProps {
   notes: PartitionedNotes
-  openId: string | null
   filtering: boolean
   onOpen: (note: Note) => void
   onToggleItem: (note: Note, line: number) => void
@@ -76,7 +75,6 @@ function SectionHeader({ icon: SectionIcon, title, x, y }: { icon: Icon; title: 
 
 export function NoteGrid({
   notes,
-  openId,
   filtering,
   onOpen,
   onToggleItem,
@@ -147,7 +145,6 @@ export function NoteGrid({
               <NoteCard
                 key={note.id}
                 note={note}
-                open={note.id === openId}
                 position={position}
                 measured={heights.has(note.id)}
                 measureRef={measure}

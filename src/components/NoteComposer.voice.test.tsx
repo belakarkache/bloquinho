@@ -51,7 +51,9 @@ function micButton() {
 function renderComposer() {
   const onCreate = vi.fn(() => Promise.resolve())
   render(<NoteComposer onCreate={onCreate} />)
-  return screen.getByRole('textbox', { name: 'Anote algo…' })
+  const field = screen.getByRole('textbox', { name: 'Anote algo…' })
+  fireEvent.focusIn(field)
+  return field
 }
 
 describe('NoteComposer voice input', () => {

@@ -2,7 +2,7 @@ import { PushPinIcon } from '@phosphor-icons/react'
 import { motion, type PanInfo } from 'motion/react'
 import type { MouseEvent, Ref } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toNoteView, type NoteBlock } from '../notes/checklist'
+import { sortCheckedLast, toNoteView, type NoteBlock } from '../notes/checklist'
 import { useColorNames } from '../notes/colorNames'
 import type { Note } from '../notes/types'
 import { plainInline } from '../notes/markdown'
@@ -18,7 +18,6 @@ import { useOverflow } from './useMeasure'
 
 interface NoteCardProps {
   note: Note
-  open: boolean
   position: MasonryPosition
   measured: boolean
   measureRef: Ref<HTMLElement>
@@ -38,7 +37,6 @@ function tiltFor(id: string): number {
 }
 
 const PREVIEW_BLOCKS = 10
-const CONTENT_RETURN = { delay: 0.12, duration: 0.18 }
 
 type ListBlock = Extract<NoteBlock, { kind: 'item' | 'bullet' | 'ordered' }>
 type BodySection = Exclude<NoteBlock, ListBlock> | { kind: 'list'; type: ListBlock['kind']; items: ListBlock[] }
@@ -100,7 +98,7 @@ function BodySectionView({ section, onToggleItem }: { section: BodySection; onTo
       return (
         <List className="flex flex-col gap-1">
           {section.items.map((item, index) => (
-            <ListRow key={index} block={item} onToggleItem={onToggleItem} />
+            <ListRow key={item.kind === 'item' ? item.line : index} block={item} onToggleItem={onToggleItem} />
           ))}
         </List>
       )
@@ -129,7 +127,7 @@ function BodySectionView({ section, onToggleItem }: { section: BodySection; onTo
 function NoteBody({ blocks, onToggleItem }: { blocks: NoteBlock[]; onToggleItem: (line: number) => void }) {
   return (
     <div className="mt-1.5 flex flex-col gap-1.5">
-      {toSections(blocks.slice(0, PREVIEW_BLOCKS)).map((section, index) => (
+      {toSections(sortCheckedLast(blocks).slice(0, PREVIEW_BLOCKS)).map((section, index) => (
         <BodySectionView key={index} section={section} onToggleItem={onToggleItem} />
       ))}
     </div>
@@ -138,7 +136,6 @@ function NoteBody({ blocks, onToggleItem }: { blocks: NoteBlock[]; onToggleItem:
 
 export function NoteCard({
   note,
-  open,
   position,
   measured,
   measureRef,
@@ -161,7 +158,6 @@ export function NoteCard({
   return (
     <motion.article
       ref={measureRef}
-      layoutId={note.id}
       data-measure-id={note.id}
       data-color={note.color}
       layout
@@ -174,7 +170,8 @@ export function NoteCard({
       }}
       exit={{ opacity: 0, scale: 0.8, rotate: -4, transition: quickFade }}
       whileHover={{ y: -5, rotate: tiltFor(note.id), transition: gentle }}
-      whileDrag={{ scale: 1.05, rotate: tiltFor(note.id) * 2 + 1.5, transition: bouncy }}
+      whileTap={{ rotate: 0, transition: gentle }}
+      whileDrag={{ scale: 1.05, rotate: 0, transition: { scale: bouncy, rotate: gentle } }}
       drag
       dragControls={drag.controls}
       dragListener={false}
@@ -205,9 +202,7 @@ export function NoteCard({
         aria-label={title ? `${t('note.open')}: ${plainInline(title)}` : t('note.open')}
         className="absolute inset-0 rounded-[22px]"
       />
-      <motion.div
-        initial={false}
-        animate={{ opacity: open ? 0 : 1, transition: open ? { duration: 0 } : CONTENT_RETURN }}
+      <div
         ref={frameRef}
         className={`pointer-events-none relative min-h-0 overflow-hidden px-4 pt-4 ${overflowing ? 'mask-[linear-gradient(to_bottom,black_calc(100%-3rem),transparent)]' : ''}`}
       >
@@ -219,7 +214,7 @@ export function NoteCard({
           )}
           {blocks.length > 0 && <NoteBody blocks={blocks} onToggleItem={(line) => onToggleItem(note, line)} />}
         </div>
-      </motion.div>
+      </div>
       {note.pinned && (
         <motion.span
           initial={{ scale: 0, rotate: 45 }}

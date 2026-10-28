@@ -1,4 +1,4 @@
-import { classifyLine, fenceStates, isFence, plainInline } from './markdown'
+import { classifyLine, isFence, plainInline } from './markdown'
 
 const ITEM_PATTERN = /^- \[([ xX])\](?: (.*))?$/
 export const UNCHECKED_PREFIX = '- [ ] '
@@ -63,6 +63,13 @@ export function toggleItem(content: string, line: number): string {
   const item = parseItem(lines[line] ?? '')
   if (!item) return content
   lines[line] = formatItem({ ...item, checked: !item.checked })
+  let start = line
+  while (start > 0 && parseItem(lines[start - 1])) start--
+  let end = line + 1
+  while (end < lines.length && parseItem(lines[end])) end++
+  const run = lines.slice(start, end)
+  const isChecked = (text: string) => parseItem(text)?.checked === true
+  lines.splice(start, run.length, ...run.filter((text) => !isChecked(text)), ...run.filter(isChecked))
   return lines.join('\n')
 }
 
@@ -152,46 +159,6 @@ export function toNoteView(content: string): NoteView {
   const kind = parseItem(head.text) ? null : classifyLine(head.text)
   if (kind?.kind !== 'heading') return { title: '', blocks: toBlocks([head, ...rest]) }
   return { title: kind.text.trim(), blocks: toBlocks(rest) }
-}
-
-export function sortCheckedLast(blocks: NoteBlock[]): NoteBlock[] {
-  const sorted: NoteBlock[] = []
-  let run: Extract<NoteBlock, { kind: 'item' }>[] = []
-  const flush = () => {
-    sorted.push(...run.filter((item) => !item.checked), ...run.filter((item) => item.checked))
-    run = []
-  }
-  for (const block of blocks) {
-    if (block.kind === 'item') run.push(block)
-    else {
-      flush()
-      sorted.push(block)
-    }
-  }
-  flush()
-  return sorted
-}
-
-export function checkedLastOrder(content: string): number[] {
-  const lines = content.split('\n')
-  const insideCode = fenceStates(lines)
-  const order: number[] = []
-  let run: { line: number; checked: boolean }[] = []
-  const flush = () => {
-    order.push(...run.filter(({ checked }) => !checked).map(({ line }) => line))
-    order.push(...run.filter(({ checked }) => checked).map(({ line }) => line))
-    run = []
-  }
-  lines.forEach((text, line) => {
-    const item = insideCode[line] ? null : parseItem(text)
-    if (item) run.push({ line, checked: item.checked })
-    else {
-      flush()
-      order.push(line)
-    }
-  })
-  flush()
-  return order
 }
 
 export interface NoteLine {

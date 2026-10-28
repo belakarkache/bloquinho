@@ -2,7 +2,7 @@ import { PushPinIcon } from '@phosphor-icons/react'
 import { motion, type PanInfo } from 'motion/react'
 import type { MouseEvent, Ref } from 'react'
 import { useTranslation } from 'react-i18next'
-import { sortCheckedLast, toNoteView, type NoteBlock } from '../notes/checklist'
+import { toNoteView, type NoteBlock } from '../notes/checklist'
 import { useColorNames } from '../notes/colorNames'
 import type { Note } from '../notes/types'
 import { plainInline } from '../notes/markdown'
@@ -127,7 +127,7 @@ function BodySectionView({ section, onToggleItem }: { section: BodySection; onTo
 function NoteBody({ blocks, onToggleItem }: { blocks: NoteBlock[]; onToggleItem: (line: number) => void }) {
   return (
     <div className="mt-1.5 flex flex-col gap-1.5">
-      {toSections(sortCheckedLast(blocks).slice(0, PREVIEW_BLOCKS)).map((section, index) => (
+      {toSections(blocks.slice(0, PREVIEW_BLOCKS)).map((section, index) => (
         <BodySectionView key={index} section={section} onToggleItem={onToggleItem} />
       ))}
     </div>

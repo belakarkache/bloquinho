@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  checkedLastOrder,
   fromLines,
   hasChecklist,
   isBlankNote,
   parseItem,
-  sortCheckedLast,
   toggleChecklist,
   toggleItem,
   toLines,
@@ -42,6 +40,11 @@ describe('toggleItem', () => {
   it('flips the item on the given line', () => {
     expect(toggleItem('Mercado\n- [ ] leite\n- [x] pão', 1)).toBe('Mercado\n- [x] leite\n- [x] pão')
     expect(toggleItem('Mercado\n- [ ] leite\n- [x] pão', 2)).toBe('Mercado\n- [ ] leite\n- [ ] pão')
+  })
+
+  it('moves checked items below the unchecked ones of the same list', () => {
+    expect(toggleItem('- [ ] a\n- [ ] b\n- [x] c\nobs\n- [ ] d', 0)).toBe('- [ ] b\n- [x] a\n- [x] c\nobs\n- [ ] d')
+    expect(toggleItem('- [ ] a\n- [x] b\n- [x] c', 2)).toBe('- [ ] a\n- [ ] c\n- [x] b')
   })
 
   it('keeps content when the line is not an item', () => {
@@ -143,18 +146,5 @@ describe('isBlankNote', () => {
     expect(isBlankNote('  \n')).toBe(true)
     expect(isBlankNote('- [ ] \n- [x] ')).toBe(true)
     expect(isBlankNote('- [ ] leite')).toBe(false)
-  })
-})
-
-describe('sortCheckedLast', () => {
-  it('moves checked items to the end of each checklist run', () => {
-    const { blocks } = toNoteView('- [x] a\n- [ ] b\n- [x] c\n- [ ] d\nobs\n- [x] e\n- [ ] f')
-    expect(sortCheckedLast(blocks).map((block) => ('text' in block ? block.text : ''))).toEqual(['b', 'd', 'a', 'c', 'obs', 'f', 'e'])
-  })
-})
-
-describe('checkedLastOrder', () => {
-  it('orders lines with checked items last in each run, ignoring code blocks', () => {
-    expect(checkedLastOrder('# T\n- [x] a\n- [ ] b\nobs\n```\n- [x] c\n- [ ] d\n```')).toEqual([0, 2, 1, 3, 4, 5, 6, 7])
   })
 })

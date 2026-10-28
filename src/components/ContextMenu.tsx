@@ -22,12 +22,27 @@ import {
   type MenuIconRow,
   type OpenContextMenu,
 } from './contextMenu'
+import { useBackToClose } from './useBackToClose'
 
 const VIEWPORT_MARGIN = 8
 const CURSOR_OFFSET = 2
 const RIGHT_RELEASE_DELAY_MS = 250
 const CLICK_SWALLOW_MS = 600
 const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta'])
+const POPUP_CLASS =
+  'fixed m-0 max-w-[min(20rem,calc(100vw-1rem))] min-w-56 rounded-2xl border p-1.5 shadow-[0_18px_44px_-14px_rgb(var(--shadow-ink)/0.45),0_2px_6px_-2px_rgb(var(--shadow-ink)/0.12)]'
+const SHEET_CLASS =
+  'fixed inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-[28px] border-t px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_-16px_rgb(var(--shadow-ink)/0.4)]'
+const popupMotion = {
+  initial: { opacity: 0, scale: 0.96 },
+  animate: { opacity: 1, scale: 1, transition: { duration: 0.14, ease: [0.22, 1, 0.36, 1] } },
+  exit: { opacity: 0, transition: { duration: 0.08 } },
+} as const
+const sheetMotion = {
+  initial: { y: '100%' },
+  animate: { y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } },
+  exit: { y: '100%', transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } },
+} as const
 const ARROW_STEPS: Record<string, number> = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }
 
 interface OpenMenu {
@@ -36,6 +51,7 @@ interface OpenMenu {
   y: number
   groups: MenuGroup[]
   openedAt: number
+  sheet: boolean
 }
 
 interface Cell {
@@ -148,7 +164,14 @@ function cellProps(index: number, { onHover, onChoose, onRelease }: CellHandlers
   }
 }
 
-function ActionRow({ entry, index, handlers }: { entry: MenuAction; index: number; handlers: CellHandlers }) {
+interface RowProps<Entry> {
+  entry: Entry
+  start: number
+  handlers: CellHandlers
+  sheet: boolean
+}
+
+function ActionRow({ entry, start: index, handlers, sheet }: RowProps<MenuAction>) {
   const { icon: ActionIcon, label, shortcut, danger, disabled, checked } = entry
   const active = handlers.active === index
   const tone = disabled
@@ -163,12 +186,12 @@ function ActionRow({ entry, index, handlers }: { entry: MenuAction; index: numbe
       aria-disabled={disabled}
       aria-keyshortcuts={shortcut}
       {...cellProps(index, handlers)}
-      className={`flex h-9 cursor-default items-center gap-2.5 rounded-xl pr-2.5 pl-2 text-[13.5px] font-medium ${tone}`}
+      className={`flex cursor-default items-center rounded-xl font-medium ${sheet ? 'h-12 gap-3.5 px-3 text-[15px]' : 'h-9 gap-2.5 pr-2.5 pl-2 text-[13.5px]'} ${tone}`}
     >
-      <ActionIcon size={17} weight="bold" className={danger || disabled ? '' : 'text-ink-soft'} />
+      <ActionIcon size={sheet ? 20 : 17} weight="bold" className={danger || disabled ? '' : 'text-ink-soft'} />
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {checked && <CheckIcon size={15} weight="bold" />}
-      {shortcut && (
+      {checked && <CheckIcon size={sheet ? 18 : 15} weight="bold" />}
+      {shortcut && !sheet && (
         <kbd aria-hidden="true" className="ml-5 font-sans text-xs text-ink-faint">
           {shortcut}
         </kbd>
@@ -177,7 +200,7 @@ function ActionRow({ entry, index, handlers }: { entry: MenuAction; index: numbe
   )
 }
 
-function IconRow({ entry, start, handlers }: { entry: MenuIconRow; start: number; handlers: CellHandlers }) {
+function IconRow({ entry, start, handlers, sheet }: RowProps<MenuIconRow>) {
   return (
     <div role="group" aria-label={entry.label} className="flex items-center gap-0.5 px-0.5 py-0.5">
       {entry.items.map(({ label, icon: ItemIcon }, offset) => (
@@ -187,16 +210,16 @@ function IconRow({ entry, start, handlers }: { entry: MenuIconRow; start: number
           aria-label={label}
           title={label}
           {...cellProps(start + offset, handlers)}
-          className={`flex size-9 flex-1 cursor-default items-center justify-center rounded-xl ${handlers.active === start + offset ? 'bg-ink/8 text-ink' : 'text-ink-soft'}`}
+          className={`flex flex-1 cursor-default items-center justify-center rounded-xl ${sheet ? 'h-12' : 'h-9'} ${handlers.active === start + offset ? 'bg-ink/8 text-ink' : 'text-ink-soft'}`}
         >
-          <ItemIcon size={17} weight="bold" />
+          <ItemIcon size={sheet ? 20 : 17} weight="bold" />
         </div>
       ))}
     </div>
   )
 }
 
-function ColorRow({ entry, start, handlers }: { entry: MenuColorRow; start: number; handlers: CellHandlers }) {
+function ColorRow({ entry, start, handlers, sheet }: RowProps<MenuColorRow>) {
   const { nameOf } = useColorNames()
   return (
     <div role="group" aria-label={entry.label} className="flex items-center gap-0.5 px-0.5 py-0.5">
@@ -211,11 +234,11 @@ function ColorRow({ entry, start, handlers }: { entry: MenuColorRow; start: numb
             aria-label={nameOf(color)}
             title={nameOf(color)}
             {...cellProps(start + offset, handlers)}
-            className="flex size-7 cursor-default items-center justify-center"
+            className={`flex cursor-default items-center justify-center ${sheet ? 'h-11 flex-1' : 'size-7'}`}
           >
             <span
               data-color={color}
-              className={`note-swatch flex size-5.5 items-center justify-center rounded-full border-2 transition-transform duration-150 ease-(--ease-out-soft) ${color === 'default' ? 'text-ink' : 'text-on-brand'} ${selected ? 'border-ink' : 'border-ink/15'} ${active ? 'scale-115' : ''}`}
+              className={`note-swatch flex items-center ${sheet ? 'size-8' : 'size-5.5'} justify-center rounded-full border-2 transition-transform duration-150 ease-(--ease-out-soft) ${color === 'default' ? 'text-ink' : 'text-on-brand'} ${selected ? 'border-ink' : 'border-ink/15'} ${active ? 'scale-115' : ''}`}
             >
               {selected && <CheckIcon size={11} weight="bold" />}
             </span>
@@ -233,7 +256,7 @@ function MenuPanel({ menu, onClose }: { menu: OpenMenu; onClose: () => void }) {
   const cells = cellsOf(menu.groups)
 
   useLayoutEffect(() => {
-    if (panelRef.current) setPlacement(placeWithinViewport(panelRef.current, menu.x, menu.y))
+    if (panelRef.current && !menu.sheet) setPlacement(placeWithinViewport(panelRef.current, menu.x, menu.y))
   }, [menu])
 
   const choose = (index: number) => {
@@ -269,14 +292,18 @@ function MenuPanel({ menu, onClose }: { menu: OpenMenu; onClose: () => void }) {
 
   const dismiss = useEffectEvent(() => onClose())
 
+  useBackToClose(menu.sheet, onClose)
+
   useEffect(() => {
     const keyDown = (event: KeyboardEvent) => onKeyDown(event)
     const pointerDown = (event: PointerEvent) => onPointerDown(event)
     const close = () => dismiss()
     window.addEventListener('keydown', keyDown, true)
     window.addEventListener('pointerdown', pointerDown, true)
-    window.addEventListener('wheel', close, { passive: true })
-    window.addEventListener('resize', close)
+    if (!menu.sheet) {
+      window.addEventListener('wheel', close, { passive: true })
+      window.addEventListener('resize', close)
+    }
     window.addEventListener('blur', close)
     return () => {
       window.removeEventListener('keydown', keyDown, true)
@@ -285,7 +312,7 @@ function MenuPanel({ menu, onClose }: { menu: OpenMenu; onClose: () => void }) {
       window.removeEventListener('resize', close)
       window.removeEventListener('blur', close)
     }
-  }, [])
+  }, [menu.sheet])
 
   const handlers: CellHandlers = {
     active,
@@ -298,27 +325,30 @@ function MenuPanel({ menu, onClose }: { menu: OpenMenu; onClose: () => void }) {
 
   const starts = cellStarts(menu.groups)
 
-  return (
+  const panel = (
     <motion.div
       ref={panelRef}
       role="menu"
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1, transition: { duration: 0.14, ease: [0.22, 1, 0.36, 1] } }}
-      exit={{ opacity: 0, transition: { duration: 0.08 } }}
+      {...(menu.sheet ? sheetMotion : popupMotion)}
       onMouseDown={(event) => event.preventDefault()}
       onContextMenu={(event) => {
         event.preventDefault()
         event.stopPropagation()
       }}
       onPointerLeave={() => setActive(-1)}
-      style={{
-        left: placement?.left ?? menu.x,
-        top: placement?.top ?? menu.y,
-        transformOrigin: placement?.origin,
-        visibility: placement ? 'visible' : 'hidden',
-      }}
-      className="fixed z-50 m-0 max-w-[min(20rem,calc(100vw-1rem))] min-w-56 rounded-2xl border border-line bg-surface p-1.5 text-ink shadow-[0_18px_44px_-14px_rgb(var(--shadow-ink)/0.45),0_2px_6px_-2px_rgb(var(--shadow-ink)/0.12)] select-none"
+      style={
+        menu.sheet
+          ? undefined
+          : {
+              left: placement?.left ?? menu.x,
+              top: placement?.top ?? menu.y,
+              transformOrigin: placement?.origin,
+              visibility: placement ? 'visible' : 'hidden',
+            }
+      }
+      className={`z-50 border-line bg-surface text-ink select-none ${menu.sheet ? SHEET_CLASS : POPUP_CLASS}`}
     >
+      {menu.sheet && <div aria-hidden="true" className="mx-auto mt-0.5 mb-2.5 h-1 w-10 rounded-full bg-ink/15" />}
       {menu.groups.map((group, groupIndex) => (
         <div key={groupIndex} role="group">
           {groupIndex > 0 && <div role="separator" className="mx-2 my-1 h-px bg-line" />}
@@ -335,17 +365,30 @@ function MenuPanel({ menu, onClose }: { menu: OpenMenu; onClose: () => void }) {
                   <ActionRow
                     key={entryIndex}
                     entry={entry}
-                    index={starts[groupIndex][entryIndex]}
+                    start={starts[groupIndex][entryIndex]}
                     handlers={handlers}
+                    sheet={menu.sheet}
                   />
                 )
               case 'icons':
                 return (
-                  <IconRow key={entryIndex} entry={entry} start={starts[groupIndex][entryIndex]} handlers={handlers} />
+                  <IconRow
+                    key={entryIndex}
+                    entry={entry}
+                    start={starts[groupIndex][entryIndex]}
+                    handlers={handlers}
+                    sheet={menu.sheet}
+                  />
                 )
               case 'colors':
                 return (
-                  <ColorRow key={entryIndex} entry={entry} start={starts[groupIndex][entryIndex]} handlers={handlers} />
+                  <ColorRow
+                    key={entryIndex}
+                    entry={entry}
+                    start={starts[groupIndex][entryIndex]}
+                    handlers={handlers}
+                    sheet={menu.sheet}
+                  />
                 )
             }
           })}
@@ -353,12 +396,27 @@ function MenuPanel({ menu, onClose }: { menu: OpenMenu; onClose: () => void }) {
       ))}
     </motion.div>
   )
+
+  if (!menu.sheet) return panel
+  return (
+    <>
+      <motion.div
+        aria-hidden="true"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1, transition: { duration: 0.2 } }}
+        exit={{ opacity: 0, transition: { duration: 0.16 } }}
+        className="fixed inset-0 z-50 touch-none bg-(--scrim)"
+      />
+      {panel}
+    </>
+  )
 }
 
 export function ContextMenuProvider({ children }: { children: ReactNode }) {
   const [menu, setMenu] = useState<OpenMenu | null>(null)
   const [host, setHost] = useState<Element | null>(null)
   const nextId = useRef(0)
+  const lastPointer = useRef('mouse')
   const close = useCallback(() => setMenu(null), [])
 
   const open = useCallback<OpenContextMenu>((event, groups) => {
@@ -372,15 +430,28 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     }
     nextId.current += 1
     setHost(topLayerHost())
-    setMenu({ id: nextId.current, ...anchorPoint(event), groups: visible, openedAt: performance.now() })
+    setMenu({
+      id: nextId.current,
+      ...anchorPoint(event),
+      groups: visible,
+      openedAt: performance.now(),
+      sheet: lastPointer.current === 'touch',
+    })
   }, [])
 
   useEffect(() => {
     const blockNativeMenu = (event: globalThis.MouseEvent) => {
       if (!event.shiftKey && !isTouch(event)) event.preventDefault()
     }
+    const trackPointer = (event: PointerEvent) => {
+      lastPointer.current = event.pointerType
+    }
     document.addEventListener('contextmenu', blockNativeMenu)
-    return () => document.removeEventListener('contextmenu', blockNativeMenu)
+    window.addEventListener('pointerdown', trackPointer, { capture: true, passive: true })
+    return () => {
+      document.removeEventListener('contextmenu', blockNativeMenu)
+      window.removeEventListener('pointerdown', trackPointer, { capture: true })
+    }
   }, [])
 
   return (

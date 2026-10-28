@@ -11,10 +11,10 @@ import {
 } from './checklist'
 import { classifyLine, FENCE_MARKER, fenceStates, isFence, nextListMarker, plainInline } from './markdown'
 
-export type InlineFormat = 'bold' | 'italic' | 'strike' | 'code'
-export type BlockFormat = 'heading' | 'bullet' | 'ordered'
+type InlineFormat = 'bold' | 'italic' | 'strike' | 'code'
+type BlockFormat = 'heading' | 'bullet' | 'ordered'
 export type FormatAction = InlineFormat | BlockFormat | 'link' | 'codeBlock' | 'clear'
-export type ListFormat = 'item' | 'bullet' | 'ordered'
+type ListFormat = 'item' | 'bullet' | 'ordered'
 
 const INLINE_MARKERS: Record<InlineFormat, string> = { bold: '**', italic: '*', strike: '~~', code: '`' }
 const URL_ONLY = /^(?:https?:\/\/|mailto:)\S+$/i
@@ -85,26 +85,26 @@ export function insertLink(content: string, start: number, end: number): TextEdi
   return edit(content, start, end, inserted, urlStart, urlStart + LINK_PLACEHOLDER.length)
 }
 
-export function blockFormatOf(line: string): BlockFormat | null {
+function blockFormatOf(line: string): BlockFormat | null {
   if (parseItem(line)) return null
   const { kind } = classifyLine(line)
   return kind === 'heading' || kind === 'bullet' || kind === 'ordered' ? kind : null
 }
 
-export function blockBody(line: string): string {
+function blockBody(line: string): string {
   const item = parseItem(line)
   if (item) return item.text
   const kind = classifyLine(line)
   return kind.kind === 'fence' ? line : kind.text
 }
 
-export function blockMarker(format: BlockFormat, number: number): string {
+function blockMarker(format: BlockFormat, number: number): string {
   if (format === 'heading') return '# '
   if (format === 'bullet') return '- '
   return `${number}. `
 }
 
-export function nextOrderedNumber(previousLine: string | undefined): number {
+function nextOrderedNumber(previousLine: string | undefined): number {
   const kind = classifyLine(previousLine ?? '')
   return kind.kind === 'ordered' ? kind.number + 1 : 1
 }
@@ -138,7 +138,7 @@ function listFormatOf(line: NoteLine, insideCode: boolean): ListFormat | null {
   return format === 'bullet' || format === 'ordered' ? format : null
 }
 
-export function convertList<T extends NoteLine>(lines: T[], index: number, target: ListFormat): T[] | null {
+function convertList<T extends NoteLine>(lines: T[], index: number, target: ListFormat): T[] | null {
   const insideCode = fenceStates(lines.map((line) => (line.checked === null ? line.text : '')))
   const formats = lines.map((line, position) => listFormatOf(line, insideCode[position]))
   const current = formats[index]
@@ -217,7 +217,7 @@ export function clearFormatting(content: string, start: number, end: number): Te
   return { content: next, selectionStart: start === end ? blockEnd : blockStart, selectionEnd: blockEnd }
 }
 
-export function insideCodeBlock(content: string, position: number): boolean {
+function insideCodeBlock(content: string, position: number): boolean {
   return content.slice(0, lineStartAt(content, position)).split('\n').filter(isFence).length % 2 === 1
 }
 

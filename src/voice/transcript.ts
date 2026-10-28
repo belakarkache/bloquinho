@@ -14,7 +14,7 @@ export function transcriptInsertion(before: string, after: string, transcript: s
   return leading + text + trailing
 }
 
-export interface TextInsertion {
+interface TextInsertion {
   content: string
   caret: number
 }

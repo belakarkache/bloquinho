@@ -2,7 +2,7 @@ import { toPlainText } from './checklist'
 import { applyOrder } from './order'
 import type { Note, NoteColor } from './types'
 
-export interface NoteFilter {
+interface NoteFilter {
   query: string
   color: NoteColor | null
 }

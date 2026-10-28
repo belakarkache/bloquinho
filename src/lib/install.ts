@@ -5,7 +5,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
-export type InstallPlatform = 'ios' | 'android' | 'desktop' | 'macSafari' | 'unsupported'
+type InstallPlatform = 'ios' | 'android' | 'desktop' | 'macSafari' | 'unsupported'
 
 interface InstallState {
   installed: boolean

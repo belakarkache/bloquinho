@@ -2,9 +2,9 @@ import { canCaptureAudio, captureAudio, openMicrophone, type AudioCapture } from
 import { canRecognizeSpeech, SpeechRecognitionFailure, startSpeechRecognition } from './speechRecognition'
 import { canUseWhisper } from './whisper'
 
-export type VoiceEngine = 'speech' | 'whisper'
+type VoiceEngine = 'speech' | 'whisper'
 
-export type VoiceResult = { kind: 'text'; text: string } | { kind: 'audio'; audio: Blob }
+type VoiceResult = { kind: 'text'; text: string } | { kind: 'audio'; audio: Blob }
 
 export interface VoiceSession {
   level: () => number

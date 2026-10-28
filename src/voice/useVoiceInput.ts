@@ -12,9 +12,9 @@ import {
   transcribeWithWhisper,
 } from './whisper'
 
-export type VoicePhase = 'idle' | 'holding' | 'locked' | 'transcribing'
-export type VoiceNotice = 'permission' | 'noSpeech' | 'failed' | 'tooLong' | 'downloadFailed'
-export type ModelDownload = { status: 'confirm' } | { status: 'loading'; progress: number } | null
+type VoicePhase = 'idle' | 'holding' | 'locked' | 'transcribing'
+type VoiceNotice = 'permission' | 'noSpeech' | 'failed' | 'tooLong' | 'downloadFailed'
+type ModelDownload = { status: 'confirm' } | { status: 'loading'; progress: number } | null
 
 const NOTICE_DURATION_MS = 4_000
 

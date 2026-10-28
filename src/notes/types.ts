@@ -15,7 +15,7 @@ export const COLOR_LABEL_MAX_LENGTH = 30
 
 export type NoteColor = (typeof NOTE_COLORS)[number]
 
-export type SyncState = 'pending' | 'synced'
+type SyncState = 'pending' | 'synced'
 
 export interface NoteData {
   id: string

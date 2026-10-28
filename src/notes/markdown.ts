@@ -5,7 +5,7 @@ export type Inline =
   | { kind: 'link'; href: string; children: Inline[] }
   | { kind: 'url'; href: string }
 
-export type LineKind =
+type LineKind =
   | { kind: 'heading'; level: number; marker: string; text: string }
   | { kind: 'bullet'; marker: string; text: string }
   | { kind: 'ordered'; number: number; delimiter: string; marker: string; text: string }

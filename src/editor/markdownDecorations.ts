@@ -27,7 +27,7 @@ const BOX_PATHS = {
     'M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm-34.34,77.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z',
 }
 
-export interface LineLayout {
+interface LineLayout {
   lineClass: string
   item: { checked: boolean; label: string; prefix: number } | null
   bodyStart: number
@@ -62,7 +62,7 @@ export function lineLayout(text: string, insideCode: boolean): LineLayout {
   }
 }
 
-export function documentLayouts(state: EditorState): LineLayout[] {
+function documentLayouts(state: EditorState): LineLayout[] {
   const texts = Array.from({ length: state.doc.lines }, (_, index) => state.doc.line(index + 1).text)
   const insideCode = fenceStates(texts)
   return texts.map((text, index) => lineLayout(text, insideCode[index]))
@@ -81,7 +81,7 @@ function svgBox(checked: boolean): SVGSVGElement {
   return svg
 }
 
-export function toggleItemAt(view: EditorView, position: number): void {
+function toggleItemAt(view: EditorView, position: number): void {
   const line = view.state.doc.lineAt(position)
   const item = parseItem(line.text)
   if (!item) return

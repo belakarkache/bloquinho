@@ -1,7 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { toNoteColor, type ColorLabel, type Note } from '../notes/types'
 
-export interface MetaEntry {
+interface MetaEntry {
   key: string
   value: string
 }

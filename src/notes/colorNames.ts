@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { NoteColor } from './types'
 
-export type CustomColorNames = ReadonlyMap<NoteColor, string>
+type CustomColorNames = ReadonlyMap<NoteColor, string>
 
 export const ColorNamesContext = createContext<CustomColorNames>(new Map())
 

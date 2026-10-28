@@ -28,7 +28,7 @@ i18n.on('languageChanged', (language) => {
   document.documentElement.lang = localeFor(language)
 })
 
-export function localeFor(language: string | undefined): string {
+function localeFor(language: string | undefined): string {
   return language === 'en' ? 'en' : 'pt-BR'
 }
 

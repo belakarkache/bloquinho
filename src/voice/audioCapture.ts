@@ -1,4 +1,4 @@
-export const WHISPER_SAMPLE_RATE = 16_000
+const WHISPER_SAMPLE_RATE = 16_000
 
 export interface AudioCapture {
   level: () => number

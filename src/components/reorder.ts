@@ -5,7 +5,7 @@ export interface NoteSections {
   others: string[]
 }
 
-export type SectionName = keyof NoteSections
+type SectionName = keyof NoteSections
 
 export type DropTarget = { kind: 'note'; id: string; after: boolean } | { kind: 'section'; section: SectionName }
 

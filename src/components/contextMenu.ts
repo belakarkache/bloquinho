@@ -26,7 +26,7 @@ export interface MenuColorRow {
   onSelect: (color: NoteColor) => void
 }
 
-export interface MenuCaption {
+interface MenuCaption {
   kind: 'caption'
   text: string
 }

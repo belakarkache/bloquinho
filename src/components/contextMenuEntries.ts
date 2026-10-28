@@ -57,7 +57,7 @@ export function linkGroup(t: Translate, href: string, onRemove?: () => void): Me
   ]
 }
 
-export interface ClipboardHandlers {
+interface ClipboardHandlers {
   hasSelection: boolean
   editable: boolean
   copyable?: boolean
@@ -107,7 +107,7 @@ export function clipboardGroup(t: Translate, field: TextField): MenuGroup {
   })
 }
 
-export function formatGroup(t: Translate, format: (action: FormatAction) => void, toggleChecklist: () => void) {
+function formatGroup(t: Translate, format: (action: FormatAction) => void, toggleChecklist: () => void) {
   const formatItem = (action: FormatAction) => ({
     label: t(`format.${action}`),
     icon: FORMAT_ICONS[action],

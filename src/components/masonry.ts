@@ -1,6 +1,6 @@
 export type MasonryBlock = { id: string; kind: 'note' | 'header' }
 
-export interface MasonryOptions {
+interface MasonryOptions {
   columns: number
   width: number
   gap: number

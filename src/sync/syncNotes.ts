@@ -2,8 +2,8 @@ import type { BloquinhoDB } from '../db/database'
 import { NOTE_MAX_LENGTH, type Note, type NoteData } from '../notes/types'
 import { PUSH_BATCH_SIZE, type NotesRemote } from './remote'
 
-export const PULL_CURSOR_KEY = 'pullCursor'
-export const PULL_OVERLAP_MS = 60_000
+const PULL_CURSOR_KEY = 'pullCursor'
+const PULL_OVERLAP_MS = 60_000
 
 export async function pushPending(db: BloquinhoDB, remote: NotesRemote): Promise<number> {
   const pending = await db.pendingNotes().filter(fitsRemoteLimits).toArray()

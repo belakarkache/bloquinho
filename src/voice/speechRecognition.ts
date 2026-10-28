@@ -17,7 +17,7 @@ type SpeechWindow = Window & {
   webkitSpeechRecognition?: RecognizerConstructor
 }
 
-export type SpeechFailure = 'network' | 'unavailable' | 'not-allowed' | 'audio-capture' | 'other'
+type SpeechFailure = 'network' | 'unavailable' | 'not-allowed' | 'audio-capture' | 'other'
 
 export class SpeechRecognitionFailure extends Error {
   readonly reason: SpeechFailure
@@ -28,7 +28,7 @@ export class SpeechRecognitionFailure extends Error {
   }
 }
 
-export interface SpeechSession {
+interface SpeechSession {
   level: () => number
   stop: () => Promise<string>
   abort: () => void

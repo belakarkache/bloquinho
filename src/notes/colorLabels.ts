@@ -1,7 +1,7 @@
 import { db as defaultDb, type BloquinhoDB } from '../db/database'
 import { COLOR_LABEL_MAX_LENGTH, type NoteColor } from './types'
 
-export function normalizeLabel(name: string): string {
+function normalizeLabel(name: string): string {
   return name.replace(/\s+/g, ' ').trim().slice(0, COLOR_LABEL_MAX_LENGTH)
 }
 

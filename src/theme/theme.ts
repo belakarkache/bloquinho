@@ -27,6 +27,7 @@ function savePreference(preference: ThemePreference): void {
 function applyTheme(preference: ThemePreference): void {
   const dark = preference === 'dark' || (preference === 'system' && darkQuery().matches)
   document.documentElement.classList.toggle('dark', dark)
+  document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b0c0e' : '#f4f5f7')
 }
 
 const listeners = new Set<() => void>()

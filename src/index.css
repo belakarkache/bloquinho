@@ -43,7 +43,6 @@
   --color-on-brand: #0b0c0e;
   --color-danger: var(--danger);
   --color-success: var(--success);
-  --color-warning: var(--warning);
   --color-toast: var(--toast-bg);
   --color-on-toast: var(--toast-ink);
   --color-toast-action: var(--toast-action);
@@ -67,7 +66,6 @@
   --brand: #c8f031;
   --danger: #d92d20;
   --success: #15803d;
-  --warning: #f59e0b;
   --shadow-ink: 11 12 14;
   --scrim: rgb(11 12 14 / 0.45);
   --toast-bg: #0b0c0e;
@@ -107,13 +105,16 @@
   --brand: #c8f031;
   --danger: #ff6b5e;
   --success: #4ade80;
-  --warning: #fbbf24;
   --shadow-ink: 0 0 0;
   --scrim: rgb(0 0 0 / 0.6);
   --toast-bg: #23262c;
   --toast-ink: #f4f5f7;
   --toast-action: #c8f031;
   --note-default: #16181c;
+}
+
+html {
+  background-color: var(--canvas);
 }
 
 body {

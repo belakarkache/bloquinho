@@ -1,9 +1,9 @@
-import { CheckIcon, CornersInIcon, CornersOutIcon, SparkleIcon } from '@phosphor-icons/react'
+import { CheckIcon, CornersInIcon, CornersOutIcon } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { FocusEvent, MouseEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { MarkdownEditorState } from '../editor/useMarkdownEditor'
-import { NOTE_COLORS, type NoteColor } from '../notes/types'
+import type { NoteColor } from '../notes/types'
 import type { VoiceInput } from '../voice/useVoiceInput'
 import { ColorPicker } from './ColorPicker'
 import { FormatToolbar } from './FormatToolbar'
@@ -47,7 +47,6 @@ interface NoteFormProps {
   onTogglePin: () => void
   onToggleFullscreen: () => void
   onDelete?: () => void
-  onOrganize?: () => void
   onSave: () => void
 }
 
@@ -68,7 +67,6 @@ export function NoteForm({
   onTogglePin,
   onToggleFullscreen,
   onDelete,
-  onOrganize,
   onSave,
 }: NoteFormProps) {
   const { t } = useTranslation()
@@ -109,7 +107,7 @@ export function NoteForm({
               className={`border-t border-ink/10 ${spacing.toolbar}`}
             />
             <div className={`flex flex-wrap items-center justify-between gap-2 border-t border-ink/10 ${spacing.bar}`}>
-              <ColorPicker value={color} onChange={onColorChange} colors={NOTE_COLORS} />
+              <ColorPicker value={color} onChange={onColorChange} />
               <div className="ml-auto flex items-center gap-1">
                 <IconButton
                   icon={fullscreen ? CornersInIcon : CornersOutIcon}
@@ -118,7 +116,6 @@ export function NoteForm({
                   onClick={onToggleFullscreen}
                   className="max-sm:hidden"
                 />
-                {onOrganize && <IconButton icon={SparkleIcon} label={t('ai.organize')} onClick={onOrganize} />}
                 <PinButton pinned={pinned} onToggle={onTogglePin} />
                 {onDelete && <DeleteButton onDelete={onDelete} />}
                 <VoiceButton voice={voice} />

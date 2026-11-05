@@ -25,7 +25,6 @@ function securityHeaders(supabaseUrl: string): Record<string, string> {
     'connect-src': [
       "'self'",
       supabaseOrigin,
-      'https://generativelanguage.googleapis.com',
       'https://huggingface.co',
       'https://*.huggingface.co',
       'https://*.hf.co',
@@ -102,8 +101,6 @@ export default defineConfig(({ mode }) => {
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
           globIgnores: ['email/**'],
-          navigateFallback: 'index.html',
-          navigateFallbackAllowlist: [/^\/$/, /^\/kanbaninho\/?$/],
         },
       }),
     ],

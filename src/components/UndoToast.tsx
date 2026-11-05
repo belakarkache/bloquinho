@@ -1,4 +1,4 @@
-import { ArrowCounterClockwiseIcon, TrashIcon, type Icon } from '@phosphor-icons/react'
+import { ArrowCounterClockwiseIcon, TrashIcon } from '@phosphor-icons/react'
 import { motion } from 'motion/react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,13 +7,11 @@ import { bouncy, pressable, quickFade } from './motion'
 const TOAST_DURATION_MS = 6_000
 
 interface UndoToastProps {
-  message: string
-  icon?: Icon
   onUndo: () => void
   onDismiss: () => void
 }
 
-export function UndoToast({ message, icon: ToastIcon = TrashIcon, onUndo, onDismiss }: UndoToastProps) {
+export function UndoToast({ onUndo, onDismiss }: UndoToastProps) {
   const { t } = useTranslation()
 
   useEffect(() => {
@@ -31,8 +29,8 @@ export function UndoToast({ message, icon: ToastIcon = TrashIcon, onUndo, onDism
       className="fixed inset-x-4 bottom-[max(1.25rem,env(safe-area-inset-bottom))] z-40 mx-auto max-w-sm overflow-hidden rounded-2xl bg-toast text-on-toast shadow-[0_18px_40px_-16px_rgb(var(--shadow-ink)/0.6)]"
     >
       <div className="flex items-center gap-3 py-2 pr-2 pl-4">
-        <ToastIcon size={18} weight="bold" className="shrink-0 opacity-70" />
-        <span className="flex-1 text-sm font-medium">{message}</span>
+        <TrashIcon size={18} weight="bold" className="shrink-0 opacity-70" />
+        <span className="flex-1 text-sm font-medium">{t('note.deleted')}</span>
         <motion.button
           type="button"
           onClick={onUndo}

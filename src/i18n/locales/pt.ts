@@ -119,11 +119,6 @@ export const pt = {
     open: 'Abrir menu',
     title: 'Menu',
   },
-  update: {
-    available: 'Nova versão disponível',
-    reload: 'Atualizar',
-    dismiss: 'Agora não',
-  },
   install: {
     action: 'Instalar app',
     title: 'Instalar o Bloquinho',

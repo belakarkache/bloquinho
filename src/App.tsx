@@ -15,7 +15,7 @@ import { NoteGrid } from './components/NoteGrid'
 import { NoteSearch, type NoteSearchHandle } from './components/NoteSearch'
 import type { Neighbors } from './components/reorder'
 import { UndoToast } from './components/UndoToast'
-import { UpdatePrompt } from './components/UpdatePrompt'
+import { AutoUpdate } from './components/AutoUpdate'
 import { useBackgroundMenu } from './components/useBackgroundMenu'
 import { toggleItem } from './notes/checklist'
 import { partitionNotes } from './notes/filter'
@@ -170,7 +170,7 @@ export default function App() {
       <AnimatePresence>
         {deletedNote && <UndoToast key={deletedNote.id} onUndo={undoDelete} onDismiss={dismissToast} />}
       </AnimatePresence>
-      <UpdatePrompt hidden={openNote !== null || deletedNote !== null} />
+      <AutoUpdate busy={openNote !== null || deletedNote !== null} />
     </div>
   )
 }

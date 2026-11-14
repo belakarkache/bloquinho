@@ -80,7 +80,8 @@ function Recording({ voice }: { voice: VoiceInput }) {
             size="sm"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => void voice.finish()}
-            className="ml-auto -mr-2 text-danger hover:bg-danger/12 hover:text-danger"
+            iconClassName="text-danger"
+            className="-ml-1 hover:bg-danger/12"
           />
         ) : (
           <SlideToCancel dragX={voice.dragX} />

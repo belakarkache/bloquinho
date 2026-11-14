@@ -1,4 +1,4 @@
-import { CaretUpIcon, CheckIcon, CircleNotchIcon, LockSimpleIcon, MicrophoneIcon } from '@phosphor-icons/react'
+import { CaretUpIcon, CircleNotchIcon, LockSimpleIcon, MicrophoneIcon, StopIcon } from '@phosphor-icons/react'
 import { AnimatePresence, motion, useMotionValue, useTransform, type MotionValue } from 'motion/react'
 import { useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -12,7 +12,7 @@ const TAP_DURATION_MS = 250
 const GLYPHS = {
   idle: MicrophoneIcon,
   holding: MicrophoneIcon,
-  locked: CheckIcon,
+  locked: StopIcon,
   transcribing: CircleNotchIcon,
 }
 

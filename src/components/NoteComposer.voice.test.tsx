@@ -104,6 +104,17 @@ describe('NoteComposer voice input', () => {
     expect(editorText(field)).toBe('Ligar para Ana')
   })
 
+  it('stops the recording from the stop button next to the timer', async () => {
+    const field = renderComposer()
+    fireEvent.keyDown(micButton(), { key: 'Enter' })
+    await act(async () => {})
+    act(() => latestRecognition().say('regar as plantas'))
+    fireEvent.click(screen.getByRole('button', { name: 'Parar gravação' }))
+    await act(async () => {})
+    expect(latestRecognition().stopped).toBe(true)
+    expect(editorText(field)).toBe('Regar as plantas')
+  })
+
   it('discards the recording when sliding left', async () => {
     const field = renderComposer()
     fireEvent.pointerDown(micButton(), { button: 0, pointerId: 1, clientX: 200, clientY: 100 })

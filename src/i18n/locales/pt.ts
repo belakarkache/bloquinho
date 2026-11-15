@@ -62,6 +62,7 @@ export const pt = {
     hint: 'Segure para falar ou toque para gravar sem as mãos',
     finish: 'Concluir gravação',
     discard: 'Descartar gravação',
+    stop: 'Parar gravação',
     slideToCancel: 'Deslize para cancelar',
     slideToLock: 'Deslize para cima para travar',
     listening: 'Ouvindo…',

@@ -1,4 +1,4 @@
-import { CaretLeftIcon, CircleNotchIcon, TrashIcon, WarningCircleIcon } from '@phosphor-icons/react'
+import { CaretLeftIcon, CircleNotchIcon, StopIcon, TrashIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { AnimatePresence, motion, useTransform, type MotionValue } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -72,7 +72,20 @@ function Recording({ voice }: { voice: VoiceInput }) {
         <span className="size-2.5 shrink-0 animate-pulse rounded-full bg-danger" aria-hidden="true" />
         <Elapsed since={voice.startedAt} />
         <LevelMeter level={voice.level} />
-        {!locked && <SlideToCancel dragX={voice.dragX} />}
+        {locked ? (
+          <IconButton
+            icon={StopIcon}
+            label={t('voice.stop')}
+            weight="fill"
+            size="sm"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => void voice.finish()}
+            iconClassName="text-danger"
+            className="-ml-1 hover:bg-danger/12"
+          />
+        ) : (
+          <SlideToCancel dragX={voice.dragX} />
+        )}
       </div>
       <p aria-live="polite" className="mt-1 text-[15px] leading-relaxed break-words text-ink-soft italic">
         {preview || t('voice.listening')}

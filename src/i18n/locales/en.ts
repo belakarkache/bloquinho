@@ -64,6 +64,7 @@ export const en: Translation = {
     hint: 'Hold to talk or tap to record hands-free',
     finish: 'Finish recording',
     discard: 'Discard recording',
+    stop: 'Stop recording',
     slideToCancel: 'Slide to cancel',
     slideToLock: 'Slide up to lock',
     listening: 'Listening…',
